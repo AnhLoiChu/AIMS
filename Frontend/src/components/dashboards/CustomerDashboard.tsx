@@ -24,7 +24,6 @@ interface CartItem {
   quantity: number;
   maxQuantity: number;
   weight: number;
-  rush_eligible?: boolean;
 }
 
 export const CustomerDashboard = ({ user, onLogout, onRoleSwitch, availableRoles }: CustomerDashboardProps) => {
@@ -57,8 +56,7 @@ export const CustomerDashboard = ({ user, onLogout, onRoleSwitch, availableRoles
           current_price: product.current_price,
           quantity,
           maxQuantity: product.quantity,
-          weight: product.weight,
-          rush_eligible: product.rush_order_eligibility
+          weight: product.weight
         };
         return [...prev, cartItem];
       });
@@ -70,14 +68,14 @@ export const CustomerDashboard = ({ user, onLogout, onRoleSwitch, availableRoles
   const updateCartItem = async (productId: string, quantity: number) => {
     try {
       if (quantity <= 0) {
-        await apiService.removeProductFromCart(user.id, parseInt(productId));
+        await apiService.removeProductFromCart(user.id, parseInt(productId), 0);
         console.log('Product removed from cart successfully');
         setCartItems(prev => prev.filter(item => item.id !== productId));
       } else {
         // For quantity updates, we need to remove and re-add with new quantity
         const currentItem = cartItems.find(item => item.id === productId);
         if (currentItem) {
-          await apiService.removeProductFromCart(user.id, parseInt(productId));
+          await apiService.removeProductFromCart(user.id, parseInt(productId), 0);
           await apiService.addProductToCart(user.id, parseInt(productId), quantity);
           console.log('Product quantity updated successfully');
           setCartItems(prev =>
@@ -109,36 +107,16 @@ export const CustomerDashboard = ({ user, onLogout, onRoleSwitch, availableRoles
       const createOrderResult = await apiService.createOrder(parseInt(user.id), productIds);
       console.log('Order created successfully:', createOrderResult);
 
-      // Check if order is rushable
-      const rushableResult = await apiService.checkOrderRushable(createOrderResult.order_id);
-      console.log('Rush order check result:', rushableResult);
-
-      // Process delivery information based on rush order selection
-      if (orderData.rushOrder.enabled && rushableResult.rushable) {
-        const rushDeliveryData = {
-          order_id: createOrderResult.order_id,
-          recipient_name: orderData.deliveryInfo.recipient_name,
-          email: orderData.deliveryInfo.email,
-          phone: orderData.deliveryInfo.phone,
-          province: orderData.deliveryInfo.province,
-          address: orderData.deliveryInfo.address,
-          instruction: orderData.rushOrder.info.delivery_instructions || null,
-          delivery_time: orderData.rushOrder.info.delivery_time ? new Date(orderData.rushOrder.info.delivery_time) : null
-        };
-        await apiService.processRushOrder(rushDeliveryData);
-        console.log('Rush order processed successfully');
-      } else {
-        const normalDeliveryData = {
-          order_id: createOrderResult.order_id,
-          recipient_name: orderData.deliveryInfo.recipient_name,
-          email: orderData.deliveryInfo.email,
-          phone: orderData.deliveryInfo.phone,
-          province: orderData.deliveryInfo.province,
-          address: orderData.deliveryInfo.address
-        };
-        await apiService.createNormalOrderDeliveryInfo(normalDeliveryData);
-        console.log('Normal order delivery info created successfully');
-      }
+      const normalDeliveryData = {
+        order_id: createOrderResult.order.order_id,
+        recipient_name: orderData.deliveryInfo.recipient_name,
+        email: orderData.deliveryInfo.email,
+        phone: orderData.deliveryInfo.phone,
+        province: orderData.deliveryInfo.province,
+        address: orderData.deliveryInfo.address
+      };
+      await apiService.createNormalOrderDeliveryInfo(normalDeliveryData);
+      console.log('Normal order delivery info created successfully');
 
       // Generate mock transaction data (in real app, this would come from payment processor)
       const transactionData = {
@@ -218,6 +196,8 @@ export const CustomerDashboard = ({ user, onLogout, onRoleSwitch, availableRoles
             onUpdateItem={updateCartItem}
             onClearCart={clearCart}
             onOrderComplete={handleOrderComplete}
+            onOrderCreate={() => {}}
+            onDeliveryInfoCreate={() => {}}
           />
         )}
         {activeTab === 'orders' && (

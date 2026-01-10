@@ -59,9 +59,23 @@ export class ProductController {
   }
 
   @Get()
-  findAll(@Query('limit') limit?: string) {
-    const effectiveLimit = limit ? parseInt(limit, 10) : 30;
-    return this.productService.findAll(effectiveLimit);
+  findAll(
+    @Query('search') search?: string,
+    @Query('category') category?: string,
+    @Query('minPrice') minPrice?: string,
+    @Query('maxPrice') maxPrice?: string,
+    @Query('sort') sort?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const effectiveLimit = limit ? parseInt(limit, 10) : 20;
+    return this.productService.findAll({
+      search,
+      category,
+      minPrice: minPrice ? parseFloat(minPrice) : undefined,
+      maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
+      sort,
+      limit: effectiveLimit,
+    });
   }
   @ApiBearerAuth()
   @UseGuards(ManagerProductOwnershipGuard, RolesGuard)

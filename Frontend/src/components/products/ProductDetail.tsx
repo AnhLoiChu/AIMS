@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, ShoppingCart } from 'lucide-react';
 import { apiService, ProductDetail as ProductDetailType } from '@/services/api';
+import { formatVNDShort } from '@/utils/format';
 
 interface ProductDetailProps {
   productId: number;
@@ -45,7 +46,7 @@ export const ProductDetail = ({ productId, onBack, onAddToCart }: ProductDetailP
     switch (type) {
       case 'book': return '📚';
       case 'cd': return '💿';
-      case 'lp': return '🎵';
+      case 'news': return '📰';
       case 'dvd': return '📀';
       default: return '📦';
     }
@@ -144,20 +145,25 @@ export const ProductDetail = ({ productId, onBack, onAddToCart }: ProductDetailP
           </div>
         );
 
-      case 'lp':
-        if (!product.lp) return null;
+      case 'news':
+        if (!product.news) return null;
         return (
           <div className="space-y-3">
-            <h3 className="font-semibold text-lg">LP Details</h3>
+            <h3 className="font-semibold text-lg">Newspaper Details</h3>
             <div className="grid grid-cols-2 gap-4">
-              <div><span className="font-medium">Artist:</span> {product.lp.artist}</div>
-              <div><span className="font-medium">Genre:</span> {product.lp.genre}</div>
-              <div><span className="font-medium">Record Label:</span> {product.lp.record_label}</div>
-              <div><span className="font-medium">Release Date:</span> {formatDate(product.lp.release_date)}</div>
+              <div><span className="font-medium">Editor-in-Chief:</span> {product.news.editor_in_chief}</div>
+              <div><span className="font-medium">Publisher:</span> {product.news.publisher}</div>
+              <div><span className="font-medium">Issue Number:</span> {product.news.issue_number}</div>
+              <div><span className="font-medium">Frequency:</span> {product.news.publication_frequency}</div>
+              <div><span className="font-medium">Language:</span> {product.news.language}</div>
+              <div><span className="font-medium">ISSN:</span> {product.news.issn || 'N/A'}</div>
+              <div className="col-span-2">
+                <span className="font-medium">Publication Date:</span> {formatDate(product.news.publication_date)}
+              </div>
             </div>
             <div>
-              <span className="font-medium">Tracklist:</span>
-              <p className="mt-1 text-sm text-gray-600">{product.lp.tracklist}</p>
+              <span className="font-medium">Sections:</span>
+              <p className="mt-1 text-sm text-gray-600">{product.news.sections}</p>
             </div>
           </div>
         );
@@ -184,20 +190,15 @@ export const ProductDetail = ({ productId, onBack, onAddToCart }: ProductDetailP
               <div className="flex items-center gap-2 mt-2">
                 <Badge variant="secondary">{product.type.toUpperCase()}</Badge>
                 <Badge variant="outline">{product.category}</Badge>
-                {product.rush_order_eligibility && (
-                  <Badge variant="outline" className="text-blue-600 border-blue-200">
-                    Rush Eligible
-                  </Badge>
-                )}
               </div>
             </div>
             <div className="text-right">
               <div className="text-3xl font-bold text-green-600">
-                ${product.current_price.toFixed(2)}
+                {formatVNDShort(product.current_price)}
               </div>
               {product.value !== product.current_price && (
                 <div className="text-lg text-gray-500 line-through">
-                  ${product.value.toFixed(2)}
+                  {formatVNDShort(product.value)}
                 </div>
               )}
             </div>

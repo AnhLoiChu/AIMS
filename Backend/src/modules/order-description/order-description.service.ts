@@ -46,7 +46,7 @@ export class OrderDescriptionService extends TypeOrmCrudService<OrderDescription
       od.order_id = order.order_id;
       od.product_id = pic.product_id;
       od.quantity = pic.quantity;
-      od.is_rush = false;
+
       return od;
     });
     await this.orderDescriptionRepository.save(orderDescriptions);
@@ -56,35 +56,7 @@ export class OrderDescriptionService extends TypeOrmCrudService<OrderDescription
     };
   }
 
-  async extendRushOrderDescription(
-    orderId: number,
-    eligibleProductIds: number[],
-  ) {
-    const orderDescriptions = await this.orderDescriptionRepository.find({
-      where: {
-        order_id: orderId,
-        product_id: In(eligibleProductIds),
-      },
-    });
 
-    if (!orderDescriptions.length) {
-      throw new NotFoundException({
-        code: 'ORDER_DESCRIPTION_NOT_FOUND',
-        message: `No matching order descriptions found for Order ${orderId}`,
-      });
-    }
-
-    for (const order of orderDescriptions) {
-      order.is_rush = true;
-    }
-
-    await this.orderDescriptionRepository.save(orderDescriptions);
-
-    return {
-      success: true,
-      message: `Updated ${orderDescriptions.length} product(s) for rush delivery in order ${orderId}`,
-    };
-  }
 
 
   // delete product in order
@@ -95,21 +67,5 @@ export class OrderDescriptionService extends TypeOrmCrudService<OrderDescription
     });
   }
 
-  async checkRushOrderEligibilityBeforeHand(orderId: number): Promise<boolean> {
-    const orderDescriptions = await this.orderDescriptionRepository.find({
-      where: { order_id: orderId },
-      relations: ['product'],
-    });
 
-    if (!orderDescriptions.length) {
-      throw new NotFoundException({
-        code: 'ORDER_DESCRIPTION_NOT_FOUND',
-        message: `No matching order descriptions found for Order ${orderId}`,
-      });
-    }
-
-    return orderDescriptions.some(
-      (desc) => desc.product?.rush_order_eligibility === true,
-    );
-  }
 }

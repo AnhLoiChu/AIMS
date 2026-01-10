@@ -28,7 +28,7 @@ export const ProductForm = ({ product, onSave, onCancel }: ProductFormProps) => 
     number_of_pages: product?.number_of_pages || '',
     language: product?.language || '',
     genre: product?.genre || '',
-    // CD/LP specific
+    // CD specific
     artist: product?.artist || '',
     record_label: product?.record_label || '',
     tracklist: product?.tracklist || '',
@@ -38,7 +38,13 @@ export const ProductForm = ({ product, onSave, onCancel }: ProductFormProps) => 
     runtime: product?.runtime || '',
     studio: product?.studio || '',
     disc_type: product?.disc_type || '',
-    subtitles: product?.subtitles || ''
+    subtitles: product?.subtitles || '',
+    // News specific
+    editor_in_chief: product?.editor_in_chief || '',
+    issue_number: product?.issue_number || '',
+    publication_frequency: product?.publication_frequency || '',
+    issn: product?.issn || '',
+    sections: product?.sections || ''
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -111,7 +117,6 @@ export const ProductForm = ({ product, onSave, onCancel }: ProductFormProps) => 
           </>
         );
       case 'cd':
-      case 'lp':
         return (
           <>
             <div>
@@ -138,6 +143,75 @@ export const ProductForm = ({ product, onSave, onCancel }: ProductFormProps) => 
                 value={formData.tracklist}
                 onChange={(e) => updateField('tracklist', e.target.value)}
                 placeholder="Enter track names, one per line"
+              />
+            </div>
+          </>
+        );
+      case 'news':
+        return (
+          <>
+            <div>
+              <Label htmlFor="editor_in_chief">Editor-in-Chief *</Label>
+              <Input
+                id="editor_in_chief"
+                value={formData.editor_in_chief}
+                onChange={(e) => updateField('editor_in_chief', e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="publisher">Publisher</Label>
+              <Input
+                id="publisher"
+                value={formData.publisher}
+                onChange={(e) => updateField('publisher', e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="issue_number">Issue Number</Label>
+              <Input
+                id="issue_number"
+                value={formData.issue_number}
+                onChange={(e) => updateField('issue_number', e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="publication_frequency">Publication Frequency</Label>
+              <Select value={formData.publication_frequency} onValueChange={(value) => updateField('publication_frequency', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select frequency" />
+                </SelectTrigger>
+                <SelectContent className="bg-white z-50">
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="quarterly">Quarterly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="issn">ISSN</Label>
+              <Input
+                id="issn"
+                value={formData.issn}
+                onChange={(e) => updateField('issn', e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="language">Language</Label>
+              <Input
+                id="language"
+                value={formData.language}
+                onChange={(e) => updateField('language', e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="sections">Sections</Label>
+              <Textarea
+                id="sections"
+                value={formData.sections}
+                onChange={(e) => updateField('sections', e.target.value)}
+                placeholder="Enter sections (comma separated)"
               />
             </div>
           </>
@@ -216,7 +290,7 @@ export const ProductForm = ({ product, onSave, onCancel }: ProductFormProps) => 
                 <SelectContent className="bg-white z-50">
                   <SelectItem value="book">Book</SelectItem>
                   <SelectItem value="cd">CD</SelectItem>
-                  <SelectItem value="lp">LP Record</SelectItem>
+                  <SelectItem value="news">Newspaper</SelectItem>
                   <SelectItem value="dvd">DVD</SelectItem>
                 </SelectContent>
               </Select>

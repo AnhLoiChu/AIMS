@@ -47,14 +47,5 @@ export class DeliveryInfo {
   @IsString()
   address: string;
 
-  @Column('text', { nullable: true })
-  @IsOptional()
-  @IsString()
-  instruction: string | null;
 
-  @Column('timestamp', { nullable: true })
-  @IsOptional()
-  @IsDate()
-  @Type(() => Date)
-  delivery_time: Date | null;
 }

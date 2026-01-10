@@ -28,6 +28,46 @@ export default async function seedUsers() {
     await roleRepo.save(adminRole);
   }
 
+  // ========== FIXED TEST USERS ==========
+  // Test Admin User
+  const testAdmin = userRepo.create({
+    name: 'Test Admin',
+    email: 'admin@test.com',
+    phone: '0123456789',
+    password: '123456',
+    roles: [adminRole],
+  });
+  await userRepo.save(testAdmin);
+  console.log('✅ Created test admin: admin@test.com / 123456');
+
+  // Test Manager User
+  const testManager = userRepo.create({
+    name: 'Test Manager',
+    email: 'manager@test.com',
+    phone: '0123456788',
+    password: '123456',
+    roles: [managerRole],
+  });
+  await userRepo.save(testManager);
+  console.log('✅ Created test manager: manager@test.com / 123456');
+
+  // Test Customer User
+  const testCustomer = userRepo.create({
+    name: 'Test Customer',
+    email: 'customer@test.com',
+    phone: '0123456787',
+    password: '123456',
+    roles: [customerRole],
+  });
+  const savedTestCustomer = await userRepo.save(testCustomer);
+  const testCustomerCart = cartRepo.create({
+    customer: savedTestCustomer,
+    customer_id: savedTestCustomer.user_id,
+  });
+  await cartRepo.save(testCustomerCart);
+  console.log('✅ Created test customer: customer@test.com / 123456');
+  // ======================================
+
   // Seed customers
   for (let i = 0; i < 10; i++) {
     const user = userRepo.create({

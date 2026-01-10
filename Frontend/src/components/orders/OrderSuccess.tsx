@@ -14,20 +14,12 @@ interface OrderSuccessProps {
       province: string;
       address: string;
     };
-    rushOrder: {
-      enabled: boolean;
-      items?: string[];
-      info?: {
-        delivery_time: string;
-        delivery_instructions: string;
-      };
-    };
+
     pricing: {
       subtotal: number;
       vat: number;
       deliveryFees: {
         regular: number;
-        rush: number;
       };
       total: number;
     };
@@ -94,18 +86,7 @@ export const OrderSuccess = ({ orderData, transactionData, onBackToShopping }: O
                 <p className="text-2xl font-bold text-green-600">${orderData.pricing.total.toFixed(2)}</p>
               </div>
 
-              {orderData.rushOrder.enabled && orderData.rushOrder.info && (
-                <>
-                  <Separator />
-                  <div>
-                    <p className="text-sm text-gray-500 mb-2">Rush Order Details</p>
-                    <div className="bg-yellow-50 p-3 rounded-lg">
-                      <p className="text-sm"><strong>Delivery Time:</strong> {new Date(orderData.rushOrder.info.delivery_time).toLocaleString()}</p>
-                      <p className="text-sm mt-1"><strong>Instructions:</strong> {orderData.rushOrder.info.delivery_instructions}</p>
-                    </div>
-                  </div>
-                </>
-              )}
+
             </CardContent>
           </Card>
 
@@ -182,12 +163,7 @@ export const OrderSuccess = ({ orderData, transactionData, onBackToShopping }: O
                   <span>{orderData.pricing.deliveryFees.regular.toLocaleString()} VND</span>
                 </div>
               )}
-              {orderData.pricing.deliveryFees.rush > 0 && (
-                <div className="flex justify-between">
-                  <span>Rush Delivery:</span>
-                  <span>{orderData.pricing.deliveryFees.rush.toLocaleString()} VND</span>
-                </div>
-              )}
+
               <Separator />
               <div className="flex justify-between font-bold text-lg">
                 <span>Total:</span>

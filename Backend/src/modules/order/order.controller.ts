@@ -70,22 +70,13 @@ export class OrderController {
       });
     }
 
-    const rushable = await this.service.checkRushOrderAvailable(order.order_id);
-
     return {
       order,
       orderDescriptions,
-      rushable,
     };
   }
 
-  @Post('create-rush')
-  async processRushOrder(
-    @Body('order_id') orderId: number,
-    @Body() dto: CreateDeliveryInfoDto,
-  ) {
-    return await this.service.processRushOrder(orderId, dto);
-  }
+
 
   @Post('remove/:order_id')
   async removeOrder(@Param('order_id') orderId: number) {

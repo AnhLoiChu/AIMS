@@ -13,6 +13,7 @@ const AppDataSource = new DataSource({
   password: configService.get<string>('DB_PASSWORD') || 'postgres',
   database: configService.get<string>('DB_DATABASE') || 'postgres',
   logging: true,
+  synchronize: true, // Auto create tables from entities (DEV only!)
   entities: [__dirname + '/../**/*.entity.{js,ts}'],
   subscribers: [__dirname + '/../**/*.subscriber.{js,ts}'],
   migrations: ['src/database/migrations/*-migration.ts'],

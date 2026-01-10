@@ -10,6 +10,7 @@ import { on } from 'events';
 import { User } from '@/pages/Index';
 import { apiService } from '@/services/api';
 import { set } from 'date-fns';
+import { formatVNDShort } from '@/utils/format';
 interface CartItem {
   id: string;
   title: string;
@@ -18,7 +19,6 @@ interface CartItem {
   quantity: number;
   maxQuantity: number;
   weight: number;
-  rush_eligible?: boolean;
 }
 
 interface ShoppingCartProps {
@@ -71,7 +71,6 @@ export const ShoppingCart = ({ items, user, onUpdateItem, onClearCart, onOrderCr
     return (
       <Checkout
         cartItems={items}
-        rushable={items.some(item => item.rush_eligible)}
         orderId={response.order.order_id}
         onBack={() => setShowCheckout(false)}
         onOrderComplete={handleOrderComplete}
@@ -116,14 +115,9 @@ export const ShoppingCart = ({ items, user, onUpdateItem, onClearCart, onOrderCr
                       <Badge variant="secondary">
                         {item.category.toUpperCase()}
                       </Badge>
-                      {item.rush_eligible && (
-                        <Badge variant="outline" className="text-blue-600 border-blue-200">
-                          Rush Eligible
-                        </Badge>
-                      )}
                     </div>
                     <p className="text-green-600 font-semibold mt-2">
-                      ${item.current_price.toFixed(2)} each
+                      {formatVNDShort(item.current_price)} each
                     </p>
                     <p className="text-xs text-gray-500">Weight: {item.weight}kg</p>
                   </div>
@@ -156,9 +150,9 @@ export const ShoppingCart = ({ items, user, onUpdateItem, onClearCart, onOrderCr
                       </Button>
                     </div>
 
-                    <div className="text-right min-w-[80px]">
+                    <div className="text-right min-w-[100px]">
                       <p className="font-semibold">
-                        ${(item.current_price * item.quantity).toFixed(2)}
+                        {formatVNDShort(item.current_price * item.quantity)}
                       </p>
                     </div>
 
@@ -185,16 +179,16 @@ export const ShoppingCart = ({ items, user, onUpdateItem, onClearCart, onOrderCr
             <CardContent className="space-y-4">
               <div className="flex justify-between">
                 <span>Subtotal (excl. VAT)</span>
-                <span>${subtotal.toFixed(2)}</span>
+                <span>{formatVNDShort(subtotal)}</span>
               </div>
               <div className="flex justify-between">
                 <span>VAT (10%)</span>
-                <span>${vat.toFixed(2)}</span>
+                <span>{formatVNDShort(vat)}</span>
               </div>
               <Separator />
               <div className="flex justify-between font-semibold text-lg">
                 <span>Total</span>
-                <span>${total.toFixed(2)}</span>
+                <span>{formatVNDShort(total)}</span>
               </div>
               <Button
                 className="w-full bg-green-600 hover:bg-green-700"

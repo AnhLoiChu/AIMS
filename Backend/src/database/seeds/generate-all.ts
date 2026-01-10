@@ -6,8 +6,8 @@ const orderedFiles = [
   'generate-products.ts',
   'generate-order.ts',
   'generate-products-in-cart.ts',
-  'generate-order-description.ts',
   'generate-delivery-info.ts',
+  'generate-order-description.ts',
   'generate-payment-transaction.ts',
   // Add more in the desired order
 ];

@@ -4,7 +4,7 @@ export enum ProductType {
   BOOK = 'book',
   CD = 'cd',
   DVD = 'dvd',
-  LP = 'lp',
+  NEWS = 'news',
 }
 
 export class BaseProductDto {
@@ -37,8 +37,7 @@ export class BaseProductDto {
   })
   creation_date: Date;
 
-  @ApiProperty({ example: true, description: 'Eligibility for rush order' })
-  rush_order_eligibility: boolean;
+
 
   @ApiProperty({
     example: '1234567890123',

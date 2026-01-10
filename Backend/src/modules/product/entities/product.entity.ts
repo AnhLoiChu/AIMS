@@ -37,8 +37,7 @@ export class Product {
   @Column('timestamp')
   creation_date: Date;
 
-  @Column()
-  rush_order_eligibility: boolean;
+
 
   @Column()
   barcode: string;
@@ -53,7 +52,7 @@ export class Product {
   dimensions: string;
 
   @Column()
-  type: 'book' | 'cd' | 'dvd' | 'lp';
+  type: 'book' | 'cd' | 'dvd' | 'news';
 
   @Column('timestamp')
   warehouse_entrydate: Date;

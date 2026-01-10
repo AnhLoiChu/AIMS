@@ -182,7 +182,6 @@ export class OrderService extends TypeOrmCrudService<Order> {
     const items = await this.orderDescriptionRepository.find({
       where: {
         order_id: orderId,
-        is_rush: false,
       },
       relations: ['product'],
     });
@@ -230,190 +229,14 @@ export class OrderService extends TypeOrmCrudService<Order> {
       normalDeliveryFee,
     };
   }
-  async checkRushOrderAvailable(orderId: number): Promise<boolean> {
-    const orderDescriptions = await this.orderDescriptionRepository.find({
-      where: { order_id: orderId },
-      relations: ['product'],
-    });
 
-    if (!orderDescriptions.length) {
-      throw new NotFoundException({
-        code: 'ORDER_DESCRIPTION_NOT_FOUND',
-        message: `No matching order descriptions found for Order ${orderId}`,
-      });
-    }
 
-    return orderDescriptions.some(
-      (desc) => desc.product?.rush_order_eligibility === true,
-    );
-  }
 
-  async checkRushOrderEligibility(orderId: number) {
-    const order = await this.orderRepository.findOne({
-      where: { order_id: orderId },
-    });
 
-    if (!order) {
-      throw new NotFoundException({
-        code: 'ORDER_NOT_FOUND',
-        message: `Order ID ${orderId} not found`,
-      });
-    }
 
-    const deliveryInfo = await this.deliveryInfoRepository.findOne({
-      where: { order_id: orderId },
-    });
-
-    if (!deliveryInfo) {
-      throw new NotFoundException({
-        code: 'DELIVERY_INFO_NOT_FOUND',
-        message: `Delivery info for order ID ${orderId} not found`,
-      });
-    }
-
-    const isAddressEligible = deliveryInfo.province.toUpperCase() === 'HN';
-
-    if (!isAddressEligible) {
-      return {
-        eligible: false,
-        message: 'Rush delivery is not available in your area',
-        eligibleProducts: [],
-      };
-    }
-
-    const orderDescriptions = await this.orderDescriptionRepository.find({
-      where: { order_id: orderId },
-      relations: ['product'],
-    });
-
-    if (!orderDescriptions.length) {
-      throw new NotFoundException({
-        code: 'ORDER_DESCRIPTION_NOT_FOUND',
-        message: `No products found for order ID ${orderId}`,
-      });
-    }
-
-    const eligibleProducts = orderDescriptions
-      .filter(
-        (item) => item.product && item.product.rush_order_eligibility === true,
-      )
-      .map((item) => ({
-        product_id: item.product_id,
-        quantity: item.quantity,
-      }));
-
-    return {
-      eligible: eligibleProducts.length > 0,
-      message:
-        eligibleProducts.length > 0
-          ? `${eligibleProducts.length} out of ${orderDescriptions.length} products are eligible for rush delivery`
-          : 'No products are eligible for rush delivery',
-      eligibleProducts,
-    };
-  }
-
-  async processRushOrder(
-    orderId: number,
-    dto: CreateDeliveryInfoDto,
-  ): Promise<{
-    success: boolean;
-    message?: string;
-    eligibilityMessage?: string;
-    updateMessage?: string;
-  }> {
-    const order = await this.orderRepository.findOne({
-      where: { order_id: orderId },
-    });
-
-    if (!order) {
-      throw new NotFoundException({
-        code: 'ORDER_NOT_FOUND',
-        message: `Order ${orderId} not found`,
-      });
-    }
-
-    await this.deliveryInfoService.createRushOrderDeliveryInfo(dto);
-
-    const eligibility = await this.checkRushOrderEligibility(orderId);
-
-    if (!eligibility.eligible) {
-      return {
-        success: false,
-        message: eligibility.message,
-      };
-    }
-
-    const productIds = eligibility.eligibleProducts.map((p) => p.product_id);
-
-    const updateResult =
-      await this.orderDescriptionService.extendRushOrderDescription(
-        orderId,
-        productIds,
-      );
-
-    await this.calculateTotalDeliveryFee(orderId);
-
-    return {
-      success: true,
-      eligibilityMessage: eligibility.message,
-      updateMessage: updateResult.message,
-    };
-  }
 
   // calculate delivery fee for rush items
-  async calculateRushDeliveryFee(orderId: number) {
-    let rushSubtotal = 0;
-    let maxWeight = 0;
-    let rushDeliveryFee = 0;
 
-    const items = await this.orderDescriptionRepository.find({
-      where: {
-        order_id: orderId,
-        is_rush: true,
-      },
-      relations: ['product'],
-    });
-    if (items.length === 0) {
-      return {
-        rushSubtotal,
-        rushDeliveryFee,
-      };
-    }
-
-    for (const item of items) {
-      rushSubtotal += item.product.value * item.quantity;
-      if (item.product.weight * item.quantity > maxWeight) {
-        maxWeight = item.product.weight * item.quantity;
-      }
-    }
-
-    const deliveryInfo = await this.deliveryInfoRepository.findOne({
-      where: { order_id: orderId },
-    });
-    if (!deliveryInfo) {
-      throw new NotFoundException({
-        code: 'DELIVERY_INFO_NOT_FOUND',
-        message: `Need delivery info to calculate delivery fee`,
-      });
-    }
-    if (deliveryInfo.province !== 'HN') {
-      throw new BadRequestException({
-        code: 'RUSH_DELIVERY_NOT_AVAILABLE',
-        message: `Rush delivery is only available in Hanoi (HN). Current province: ${deliveryInfo.province}`,
-      });
-    }
-
-    rushDeliveryFee = 22000;
-    if (maxWeight > 3) {
-      rushDeliveryFee += ((maxWeight - 3) / 0.5) * 2500;
-    }
-
-    rushDeliveryFee += items.length * 10000;
-    return {
-      rushSubtotal,
-      rushDeliveryFee,
-    };
-  }
 
   // display invoice
   async displayInvoice(orderId: number) {
@@ -649,11 +472,9 @@ export class OrderService extends TypeOrmCrudService<Order> {
   }> {
     const { normalSubtotal, normalDeliveryFee } =
       await this.calculateNormalDeliveryFee(orderId);
-    const { rushSubtotal, rushDeliveryFee } =
-      await this.calculateRushDeliveryFee(orderId);
 
-    const subtotal = (normalSubtotal + rushSubtotal) * 1000;
-    const deliveryFee = normalDeliveryFee + rushDeliveryFee;
+    const subtotal = normalSubtotal * 1000;
+    const deliveryFee = normalDeliveryFee;
 
     const order = await this.orderRepository.findOne({
       where: { order_id: orderId },
