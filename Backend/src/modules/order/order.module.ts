@@ -9,7 +9,6 @@ import { CartService } from '../cart/cart.service';
 import { OrderDescription } from '../order-description/entities/order-description.entity';
 import { OrderDescriptionModule } from '../order-description/order-description.module';
 import { PaymentTransaction } from '../payment-transaction/entities/payment-transaction.entity';
-import { OrderDescriptionService } from '../order-description/order-description.service';
 import { DeliveryInfo } from '../delivery-info/entities/delivery-info.entity';
 import { DeliveryInfoModule } from '../delivery-info/delivery-info.module';
 import { FeeCalculationModule } from '../fee-calculation/fee-calculation.module';
@@ -29,7 +28,7 @@ import { FeeCalculationModule } from '../fee-calculation/fee-calculation.module'
     FeeCalculationModule,
   ],
   controllers: [OrderController],
-  providers: [OrderService, CartService, OrderDescriptionService],
+  providers: [OrderService],
   exports: [OrderService],
 })
-export class OrderModule {}
+export class OrderModule { }

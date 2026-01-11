@@ -254,6 +254,23 @@ class ApiService {
     });
   }
 
+  // Order History & Management
+  async getOrderHistory(userId: string): Promise<any[]> {
+    return this.request(`/order/history/${userId}`);
+  }
+
+  async getPendingOrders(): Promise<any> {
+    const data = await this.request("/order/pending-orders");
+    return data.orders || [];
+  }
+
+  async approveOrder(orderId: string | number, status: 'Shipping' | 'Cancelled'): Promise<any> {
+    return this.request(`/order/approve-reject/${orderId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+  }
+
   // Manager/User Management APIs
   async getManagers(): Promise<any[]> {
     return this.request("/manager");
