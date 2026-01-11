@@ -378,6 +378,32 @@ export interface ProductDetail extends Product {
   cd?: CDDetail;
   dvd?: DVDDetail;
   news?: NewsDetail;
+  // Flat fields from subtypes (backend returns merged object)
+  // Book fields
+  author?: string;
+  cover_type?: string;
+  publisher?: string;
+  publication_date?: string;
+  number_of_pages?: number;
+  language?: string;
+  genre?: string;
+  // CD fields
+  artist?: string;
+  record_label?: string;
+  tracklist?: string;
+  release_date?: string;
+  // DVD fields
+  director?: string;
+  runtime?: string;
+  studio?: string;
+  disc_type?: string;
+  subtitles?: string;
+  // News fields
+  editor_in_chief?: string;
+  issue_number?: string;
+  publication_frequency?: string;
+  issn?: string;
+  sections?: string;
 }
 
 

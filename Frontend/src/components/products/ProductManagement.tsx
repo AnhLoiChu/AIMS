@@ -56,6 +56,10 @@ export const ProductManagement = () => {
 
   const handleAddProduct = async (productData: any) => {
     try {
+      // Get logged-in user's ID
+      const user = apiService.getUser();
+      const managerId = user?.user_id || user?.id || 1;
+      
       const payload = {
         title: productData.title,
         value: productData.value,
@@ -68,7 +72,7 @@ export const ProductManagement = () => {
         weight: productData.weight || 1.0,
         dimensions: productData.dimensions || '10x10x10',
         warehouse_entrydate: new Date().toISOString(),
-        manager_id: 1, // TODO: Get from auth context
+        manager_id: managerId,
         subtypeFields: buildSubtypeFields(productData)
       };
       
@@ -263,9 +267,46 @@ export const ProductManagement = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    setEditingProduct(product);
-                    setShowForm(true);
+                  onClick={async () => {
+                    try {
+                      // Fetch full product details including subtype fields
+                      const fullProduct = await apiService.getProductDetail(parseInt(product.id));
+                      setEditingProduct({
+                        id: product.id,
+                        title: fullProduct.title,
+                        category: fullProduct.category as 'book' | 'cd' | 'news' | 'dvd',
+                        value: fullProduct.value,
+                        current_price: fullProduct.current_price,
+                        quantity: fullProduct.quantity,
+                        weight: fullProduct.weight,
+                        dimensions: fullProduct.dimensions,
+                        // Subtype fields
+                        author: fullProduct.author,
+                        cover_type: fullProduct.cover_type,
+                        publisher: fullProduct.publisher,
+                        publication_date: fullProduct.publication_date,
+                        number_of_pages: fullProduct.number_of_pages,
+                        language: fullProduct.language,
+                        genre: fullProduct.genre,
+                        artist: fullProduct.artist,
+                        record_label: fullProduct.record_label,
+                        tracklist: fullProduct.tracklist,
+                        release_date: fullProduct.release_date,
+                        director: fullProduct.director,
+                        runtime: fullProduct.runtime,
+                        studio: fullProduct.studio,
+                        disc_type: fullProduct.disc_type,
+                        subtitles: fullProduct.subtitles,
+                        editor_in_chief: fullProduct.editor_in_chief,
+                        issue_number: fullProduct.issue_number,
+                        publication_frequency: fullProduct.publication_frequency,
+                        issn: fullProduct.issn,
+                        sections: fullProduct.sections,
+                      } as any);
+                      setShowForm(true);
+                    } catch (err) {
+                      alert('Failed to load product details');
+                    }
                   }}
                 >
                   <Edit className="h-4 w-4" />
