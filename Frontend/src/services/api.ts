@@ -209,6 +209,88 @@ class ApiService {
       method: "GET",
     });
   }
+
+  async calculateDeliveryFee(data: {
+    items: Array<{
+      product: { weight: number; dimensions: string; value: number };
+      quantity: number;
+    }>;
+    province: string;
+    subtotal: number;
+    strategyName?: string;
+  }): Promise<{
+    baseFee: number;
+    additionalFee: number;
+    discount: number;
+    finalFee: number;
+    calculationMethod: string;
+    details?: any;
+  }> {
+    return this.request("/fee-calculation/calculate", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Product Management APIs
+  async createProduct(productData: any): Promise<any> {
+    return this.request("/products", {
+      method: "POST",
+      body: JSON.stringify(productData),
+    });
+  }
+
+  async updateProduct(productId: number, productData: any): Promise<any> {
+    return this.request(`/products/${productId}`, {
+      method: "PATCH",
+      body: JSON.stringify(productData),
+    });
+  }
+
+  async deleteProducts(productIds: number[]): Promise<any> {
+    return this.request("/products/multiple", {
+      method: "DELETE",
+      body: JSON.stringify({ productIds }),
+    });
+  }
+
+  // Manager/User Management APIs
+  async getManagers(): Promise<any[]> {
+    return this.request("/manager");
+  }
+
+  async createManager(managerData: {
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+  }): Promise<any> {
+    return this.request("/manager", {
+      method: "POST",
+      body: JSON.stringify(managerData),
+    });
+  }
+
+  async updateManager(
+    userId: number,
+    managerData: Partial<{
+      name: string;
+      email: string;
+      phone: string;
+      is_disabled: boolean;
+    }>
+  ): Promise<any> {
+    return this.request(`/manager/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify(managerData),
+    });
+  }
+
+  async deleteManager(userId: number): Promise<any> {
+    return this.request(`/manager/${userId}`, {
+      method: "DELETE",
+    });
+  }
 }
 
 export const apiService = new ApiService();

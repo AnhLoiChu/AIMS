@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { ProductForm } from './ProductForm';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { formatVNDShort } from '@/utils/format';
+import { apiService } from '@/services/api';
 
 interface Product {
   id: string;
@@ -24,59 +25,148 @@ export const ProductManagement = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Mock data
-    const mockProducts: Product[] = [
-      {
-        id: '1',
-        title: 'The Great Gatsby',
-        category: 'book',
-        value: 15.99,
-        current_price: 18.99,
-        quantity: 25,
-        creation_date: '2024-01-15'
-      },
-      {
-        id: '2',
-        title: 'Abbey Road',
-        category: 'cd',
-        value: 12.99,
-        current_price: 15.99,
-        quantity: 15,
-        creation_date: '2024-01-16'
-      }
-    ];
-    setProducts(mockProducts);
+    fetchProducts();
   }, []);
 
-  const handleAddProduct = (productData: any) => {
-    const newProduct: Product = {
-      ...productData,
-      id: Date.now().toString(),
-      creation_date: new Date().toISOString().split('T')[0]
-    };
-    setProducts(prev => [...prev, newProduct]);
-    setShowForm(false);
-  };
-
-  const handleEditProduct = (productData: any) => {
-    if (editingProduct) {
-      setProducts(prev => prev.map(p => 
-        p.id === editingProduct.id ? { ...productData, id: editingProduct.id } : p
-      ));
-      setEditingProduct(null);
-      setShowForm(false);
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await apiService.getProducts({ limit: 100 });
+      setProducts(data.map((p: any) => ({
+        id: p.product_id.toString(),
+        title: p.title,
+        category: p.category,
+        value: p.value,
+        current_price: p.current_price,
+        quantity: p.quantity,
+        creation_date: new Date(p.creation_date).toISOString().split('T')[0]
+      })));
+    } catch (err: any) {
+      setError('Failed to load products');
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDeleteProducts = () => {
+  const handleAddProduct = async (productData: any) => {
+    try {
+      const payload = {
+        title: productData.title,
+        value: productData.value,
+        quantity: productData.quantity,
+        current_price: productData.current_price,
+        category: productData.category,
+        type: productData.category,
+        barcode: `BAR${Date.now()}`,
+        description: productData.description || '',
+        weight: 1.0,
+        dimensions: '10x10x10',
+        warehouse_entrydate: new Date().toISOString(),
+        manager_id: 1, // TODO: Get from auth context
+        subtypeFields: buildSubtypeFields(productData)
+      };
+      
+      await apiService.createProduct(payload);
+      await fetchProducts();
+      setShowForm(false);
+    } catch (err: any) {
+      alert('Failed to create product: ' + (err.message || 'Unknown error'));
+    }
+  };
+
+  const handleEditProduct = async (productData: any) => {
+    if (!editingProduct) return;
+    
+    try {
+      const payload = {
+        title: productData.title,
+        value: productData.value,
+        quantity: productData.quantity,
+        current_price: productData.current_price,
+        category: productData.category,
+        type: productData.category,
+        description: productData.description || '',
+        weight: 1.0,
+        dimensions: '10x10x10',
+        subtypeFields: buildSubtypeFields(productData)
+      };
+      
+      await apiService.updateProduct(parseInt(editingProduct.id), payload);
+      await fetchProducts();
+      setEditingProduct(null);
+      setShowForm(false);
+    } catch (err: any) {
+      alert('Failed to update product: ' + (err.message || 'Unknown error'));
+    }
+  };
+
+  const handleDeleteProducts = async () => {
     if (selectedProducts.length > 10) {
       alert('Cannot delete more than 10 products at once');
       return;
     }
-    setProducts(prev => prev.filter(p => !selectedProducts.includes(p.id)));
-    setSelectedProducts([]);
+    
+    try {
+      const productIds = selectedProducts.map(id => parseInt(id));
+      await apiService.deleteProducts(productIds);
+      await fetchProducts();
+      setSelectedProducts([]);
+    } catch (err: any) {
+      alert('Failed to delete products: ' + (err.message || 'Unknown error'));
+    }
+  };
+
+  const buildSubtypeFields = (data: any) => {
+    switch (data.category) {
+      case 'book':
+        return {
+          author: data.author || '',
+          cover_type: data.cover_type || 'paperback',
+          publisher: data.publisher || '',
+          publication_date: data.publication_date || new Date().toISOString().split('T')[0],
+          number_of_pages: parseInt(data.number_of_pages) || 0,
+          language: data.language || 'English',
+          genre: data.genre || ''
+        };
+      case 'cd':
+        return {
+          artist: data.artist || '',
+          record_label: data.record_label || '',
+          tracklist: data.tracklist || '',
+          release_date: data.release_date || new Date().toISOString().split('T')[0],
+          genre: data.genre || ''
+        };
+      case 'dvd':
+        return {
+          director: data.director || '',
+          runtime: data.runtime || '120',
+          studio: data.studio || '',
+          disc_type: data.disc_type || 'standard',
+          subtitles: data.subtitles || 'English',
+          language: data.language || 'English',
+          release_date: data.release_date || new Date().toISOString().split('T')[0],
+          genre: data.genre || ''
+        };
+      case 'news':
+        return {
+          editor_in_chief: data.editor_in_chief || '',
+          publisher: data.publisher || '',
+          publication_date: data.publication_date || new Date().toISOString().split('T')[0],
+          issue_number: data.issue_number || '1',
+          publication_frequency: data.publication_frequency || 'monthly',
+          issn: data.issn || '',
+          language: data.language || 'English',
+          sections: data.sections || ''
+        };
+      default:
+        return {};
+    }
   };
 
   const filteredProducts = products.filter(product =>
@@ -90,6 +180,19 @@ export const ProductManagement = () => {
         : [...prev, productId]
     );
   };
+
+  if (loading) {
+    return <div className="flex justify-center items-center p-8">Loading products...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="text-red-600 p-4">
+        {error}
+        <Button onClick={fetchProducts} className="ml-4">Retry</Button>
+      </div>
+    );
+  }
 
   if (showForm) {
     return (
