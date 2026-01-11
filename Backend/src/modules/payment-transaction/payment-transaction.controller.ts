@@ -16,8 +16,11 @@ import { PaymentTransactionService } from './payment-transaction.service';
 import { CreatePaymentTransactionDto } from './dto/create-payment-transaction.dto';
 import { MailService } from '../mail/mail.service';
 import { PaymentGatewayFactory } from './payment-gateway.factory.service';
+import { UseFilters } from '@nestjs/common';
+import { PaymentExceptionFilter } from './filters/payment-exception.filter';
 
 @Controller('payorder')
+@UseFilters(PaymentExceptionFilter)
 export class PayOrderController {
   private readonly logger = new Logger(PayOrderController.name);
 

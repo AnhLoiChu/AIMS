@@ -1,12 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { PaymentTransaction } from './entities/payment-transaction.entity';
 import { Order } from '../order/entities/order.entity';
 import { CreatePaymentTransactionDto } from './dto/create-payment-transaction.dto';
 import { DeliveryInfo } from '../delivery-info/entities/delivery-info.entity';
 import { User } from '../user/entities/user.entity';
 import { OrderStatus } from '../order/dto/order-status.enum';
+
 @Injectable()
 export class PaymentTransactionService {
   constructor(
@@ -18,8 +19,10 @@ export class PaymentTransactionService {
     private deliveryInfoRepository: Repository<DeliveryInfo>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    private dataSource: DataSource,
   ) { }
 
+  // ... (keeping createTransaction as it is, or can also be wrapped if needed)
   async createTransaction(
     paymentData: CreatePaymentTransactionDto,
   ): Promise<{ transaction: PaymentTransaction; order: Order }> {
@@ -68,30 +71,47 @@ export class PaymentTransactionService {
     status: string,
     responseData?: any,
   ): Promise<PaymentTransaction> {
-    const transaction = await this.paymentTransactionRepository.findOne({
-      where: { order_id: orderId },
-      relations: ['order'],
-    });
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    if (!transaction) {
-      throw new NotFoundException(
-        `Transaction with order ID ${orderId} not found`,
-      );
+    try {
+      const transaction = await queryRunner.manager.findOne(PaymentTransaction, {
+        where: { order_id: orderId },
+        relations: ['order'],
+      });
+
+      if (!transaction) {
+        throw new NotFoundException(
+          `Transaction with order ID ${orderId} not found`,
+        );
+      }
+
+      transaction.status = status;
+      if (responseData) {
+        transaction.raw_response = JSON.stringify(responseData);
+      }
+
+      // Update transaction
+      await queryRunner.manager.save(PaymentTransaction, transaction);
+
+      // If success, update order status
+      if (status === 'SUCCESS') {
+        await queryRunner.manager.update(
+          Order,
+          { order_id: orderId },
+          { status: OrderStatus.PENDING },
+        );
+      }
+
+      await queryRunner.commitTransaction();
+      return transaction;
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
     }
-
-    transaction.status = status;
-    if (responseData) {
-      transaction.raw_response = JSON.stringify(responseData);
-    }
-
-    if (status === 'SUCCESS') {
-      await this.orderRepository.update(
-        { order_id: orderId },
-        { status: OrderStatus.PENDING },
-      );
-    }
-
-    return await this.paymentTransactionRepository.save(transaction);
   }
 
   async findByOrderId(orderId: number): Promise<PaymentTransaction> {
