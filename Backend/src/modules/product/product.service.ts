@@ -1,0 +1,244 @@
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { Product } from './entities/product.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, In } from 'typeorm';
+import { ProductType } from './dto/base-product.dto';
+import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateFullProductDto } from './dto/update-full-product.dto';
+import { DeleteProductsDto } from './dto/delete-products.dto';
+import { EditHistoryService } from '../edit-history/edit-history.service';
+import { EditAction } from '../edit-history/entities/edit-history.entity';
+import { UserService } from '../user/user.service';
+import { ProductSubtypeFactory } from './factories/product-subtype.factory';
+import { ProductValidatorService } from './services/product-validator.service';
+import { ProductBusinessRulesService } from './services/product-business-rules.service';
+import { CascadeDeletionService } from './services/cascade-deletion.service';
+
+@Injectable()
+export class ProductService {
+  constructor(
+    @InjectRepository(Product)
+    private readonly productRepo: Repository<Product>,
+    private readonly productSubtypeFactory: ProductSubtypeFactory,
+    private readonly productValidator: ProductValidatorService,
+    private readonly productBusinessRules: ProductBusinessRulesService,
+    private readonly cascadeDeletionService: CascadeDeletionService,
+    private readonly editHistoryService: EditHistoryService,
+    private readonly userService: UserService,
+  ) {}
+
+  async create(createProductDto: CreateProductDto): Promise<Product> {
+    const { type, subtypeFields, ...baseFields } = createProductDto;
+
+    // Validation using dedicated validator
+    await this.productValidator.validateCreate(createProductDto);
+
+    // Create base product
+    const product = this.productRepo.create({
+      ...baseFields,
+      type,
+      creation_date: new Date(),
+      warehouse_entrydate: new Date(),
+    });
+
+    const savedProduct = await this.productRepo.save(product);
+
+    // Create subtype using factory pattern
+    const subtypeService = this.productSubtypeFactory.getService(type);
+    const idField = this.productSubtypeFactory.getIdField(type);
+
+    await subtypeService.create({
+      ...subtypeFields,
+      [idField]: savedProduct.product_id,
+    });
+
+    return savedProduct;
+  }
+
+  async findOne(
+    id: number,
+  ): Promise<(Product & Record<string, unknown>) | null> {
+    const product = await this.productRepo.findOne({
+      where: { product_id: id },
+    });
+
+    if (!product) return null;
+
+    // Use factory to get appropriate service
+    const subtypeService = this.productSubtypeFactory.getService(
+      product.type as ProductType,
+    );
+    const idField = this.productSubtypeFactory.getIdField(
+      product.type as ProductType,
+    );
+
+    const subtypeData = await subtypeService.findOne({
+      where: { [idField]: id },
+    });
+
+    if (!subtypeData) {
+      throw new BadRequestException(
+        `Không tìm thấy dữ liệu con cho sản phẩm ID ${id}`,
+      );
+    }
+
+    return { ...product, ...subtypeData };
+  }
+  async findByIds(ids: number[]): Promise<Product[]> {
+    return await this.productRepo.find({
+      where: { product_id: In(ids) },
+    });
+  }
+
+  async findAll(limit: number): Promise<Product[]> {
+    return await this.productRepo.find({
+      take: limit,
+    });
+  }
+
+  async update(
+    id: number,
+    updateDto: UpdateFullProductDto,
+  ): Promise<Product & Record<string, unknown>> {
+    const { subtypeFields, ...baseFields } = updateDto;
+
+    // Get existing product
+    const existingProduct = await this.productRepo.findOne({
+      where: { product_id: id },
+    });
+
+    if (!existingProduct) {
+      throw new BadRequestException(`Product with id ${id} not found`);
+    }
+
+    // Get full old data (including subtype data) before update
+    const oldCompleteData = await this.findOne(id);
+    if (!oldCompleteData) {
+      throw new BadRequestException(`Product with id ${id} not found`);
+    }
+
+    // Validation using dedicated validator
+    await this.productValidator.validateUpdate(id, updateDto);
+
+    // Business rules validation using dedicated service
+    await this.productBusinessRules.checkEditLimits(
+      id,
+      existingProduct.manager_id,
+    );
+
+    if (baseFields.current_price !== undefined) {
+      this.productBusinessRules.validatePriceRange(
+        baseFields.current_price,
+        existingProduct.value,
+      );
+    }
+
+    // Update base product (exclude type field to avoid type conflicts)
+    const { type, ...updateFields } = baseFields;
+    if (Object.keys(updateFields).length > 0) {
+      await this.productRepo.update({ product_id: id }, updateFields);
+    }
+
+    // Update subtype if needed using factory
+    if (subtypeFields) {
+      const subtypeService = this.productSubtypeFactory.getService(
+        existingProduct.type as ProductType,
+      );
+      await subtypeService.update(id, subtypeFields);
+    }
+
+    // Record edit history with complete old data and new data
+    await this.recordEditHistory(id, oldCompleteData, updateDto);
+
+    // Increment manager edit count
+    await this.userService.incrementEditCount(existingProduct.manager_id);
+
+    const result = await this.findOne(id);
+    if (!result) {
+      throw new BadRequestException(
+        `Product with id ${id} not found after update`,
+      );
+    }
+    return result;
+  }
+
+  private async recordEditHistory(
+    productId: number,
+    oldCompleteData: Product & Record<string, unknown>,
+    updateDto: UpdateFullProductDto,
+  ): Promise<void> {
+    const changeDescription = this.generateChangeDescription(
+      oldCompleteData,
+      updateDto,
+    );
+
+    // Only create edit history if there are actual changes
+    if (changeDescription) {
+      await this.editHistoryService.create({
+        product_id: productId,
+        action: EditAction.EDIT,
+        change_description: changeDescription,
+      });
+    }
+  }
+
+  private generateChangeDescription(
+    oldData: any,
+    updateDto: UpdateFullProductDto,
+  ): string {
+    const changes: string[] = [];
+    const { subtypeFields, ...baseFields } = updateDto;
+
+    // Check changes in base fields
+    Object.keys(baseFields).forEach((key) => {
+      if (
+        key !== 'type' &&
+        oldData[key] !== undefined &&
+        baseFields[key] !== undefined &&
+        oldData[key] !== baseFields[key]
+      ) {
+        changes.push(`${key}: ${oldData[key]} ---> ${baseFields[key]}`);
+      }
+    });
+
+    // Check changes in subtype fields
+    if (subtypeFields) {
+      Object.keys(subtypeFields).forEach((key) => {
+        if (
+          oldData[key] !== undefined &&
+          subtypeFields[key] !== undefined &&
+          oldData[key] !== subtypeFields[key]
+        ) {
+          changes.push(`${key}: ${oldData[key]} ---> ${subtypeFields[key]}`);
+        }
+      });
+    }
+
+    return changes.join(', ');
+  }
+
+  async deleteMultiple(deleteProductsDto: DeleteProductsDto) {
+    const { productIds } = deleteProductsDto;
+
+    // Get products to be deleted
+    const products = await this.productRepo.find({
+      where: { product_id: In(productIds) },
+    });
+
+    if (products.length === 0) {
+      throw new BadRequestException('Không tìm thấy sản phẩm nào để xóa');
+    }
+
+    // Validation using dedicated validator
+    await this.productValidator.validateDelete(productIds);
+
+    // Business rules validation using dedicated service
+    await this.productBusinessRules.checkDeleteLimits(products);
+
+    // Perform deletion using dedicated cascade deletion service
+    return this.cascadeDeletionService.deleteProducts(
+      products,
+      this.productSubtypeFactory,
+    );
+  }
+}
