@@ -14,7 +14,6 @@ import {
 import { Request, Response } from 'express';
 import { PaymentTransactionService } from './payment-transaction.service';
 import { CreatePaymentTransactionDto } from './dto/create-payment-transaction.dto';
-import { MailService } from '../mail/mail.service';
 import { PaymentGatewayFactory } from './payment-gateway.factory.service';
 import { UseFilters } from '@nestjs/common';
 import { PaymentExceptionFilter } from './filters/payment-exception.filter';
@@ -27,7 +26,6 @@ export class PayOrderController {
   constructor(
     private readonly paymentFactory: PaymentGatewayFactory,
     private readonly paymentTransactionService: PaymentTransactionService,
-    private readonly mailService: MailService,
   ) { }
 
   @Post('create-payment-url')
@@ -92,24 +90,6 @@ export class PayOrderController {
           'SUCCESS',
           body,
         );
-
-        // Send confirmation email
-        try {
-          const { order, deliveryInfo, transaction } =
-            await this.paymentTransactionService.getOrderDetailsForEmail(
-              orderId,
-            );
-          await this.mailService.sendOrderConfirmation(
-            order,
-            transaction,
-            deliveryInfo,
-          );
-        } catch (emailError) {
-          this.logger.error(
-            `Failed to send email for order ${orderId}`,
-            emailError,
-          );
-        }
 
         return res.json({ success: true, message: 'Transaction verified' });
       }
