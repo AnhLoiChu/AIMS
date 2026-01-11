@@ -192,7 +192,8 @@ class ApiService {
     orderType: string;
     bankCode?: string;
     language?: string;
-  }): Promise<{ paymentUrl: string }> {
+    method?: string;
+  }): Promise<{ paymentUrl: string; type?: 'REDIRECT' | 'QR_IMAGE' }> {
     const response = await this.request("/payorder/create-payment-url", {
       method: "POST",
       body: JSON.stringify(data),
@@ -202,6 +203,11 @@ class ApiService {
 
     // Otherwise, assume the API returns a JSON with paymentUrl
     return response;
+  }
+  async checkPaymentStatus(orderId: number): Promise<{ success: boolean; data: any }> {
+    return this.request(`/payorder/transaction/${orderId}?t=${new Date().getTime()}`, {
+      method: "GET",
+    });
   }
 }
 

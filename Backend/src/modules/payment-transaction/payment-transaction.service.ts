@@ -18,7 +18,7 @@ export class PaymentTransactionService {
     private deliveryInfoRepository: Repository<DeliveryInfo>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
-  ) {}
+  ) { }
 
   async createTransaction(
     paymentData: CreatePaymentTransactionDto,
@@ -50,7 +50,7 @@ export class PaymentTransactionService {
     }
 
     const transaction = this.paymentTransactionRepository.create({
-      method: 'VNPAY',
+      method: paymentData.method || 'VIETQR', // Allow method selection, default to VIETQR
       content: paymentData.orderDescription,
       status: 'PENDING',
       order_id: paymentData.order_id,
@@ -66,7 +66,7 @@ export class PaymentTransactionService {
   async updateTransactionStatus(
     orderId: number,
     status: string,
-    vnpData?: any,
+    responseData?: any,
   ): Promise<PaymentTransaction> {
     const transaction = await this.paymentTransactionRepository.findOne({
       where: { order_id: orderId },
@@ -80,12 +80,14 @@ export class PaymentTransactionService {
     }
 
     transaction.status = status;
-    if (vnpData) {
-      transaction.vnp_txn_ref = vnpData.vnp_TxnRef;
-      transaction.vnp_transaction_no = vnpData.vnp_TransactionNo;
-      transaction.vnp_response_code = vnpData.vnp_ResponseCode;
-      transaction.raw_response = JSON.stringify(vnpData);
-      transaction.bank_name = vnpData.vnp_BankCode;
+    if (responseData) {
+      transaction.raw_response = JSON.stringify(responseData);
+
+      // Legacy mapping for VNPAY if fields exist
+      if (responseData.vnp_TxnRef) transaction.vnp_txn_ref = responseData.vnp_TxnRef;
+      if (responseData.vnp_TransactionNo) transaction.vnp_transaction_no = responseData.vnp_TransactionNo;
+      if (responseData.vnp_ResponseCode) transaction.vnp_response_code = responseData.vnp_ResponseCode;
+      if (responseData.vnp_BankCode) transaction.bank_name = responseData.vnp_BankCode;
     }
 
     if (status === 'SUCCESS') {
@@ -98,18 +100,18 @@ export class PaymentTransactionService {
     return await this.paymentTransactionRepository.save(transaction);
   }
 
-  // async findByOrderId(orderId: number): Promise<PaymentTransaction> {
-  //   const transaction = await this.paymentTransactionRepository.findOne({
-  //     where: { order_id: orderId },
-  //     relations: ['order']
-  //   });
+  async findByOrderId(orderId: number): Promise<PaymentTransaction> {
+    const transaction = await this.paymentTransactionRepository.findOne({
+      where: { order_id: orderId },
+      relations: ['order']
+    });
 
-  //   if (!transaction) {
-  //     throw new NotFoundException(`Transaction with order ID ${orderId} not found`);
-  //   }
+    if (!transaction) {
+      throw new NotFoundException(`Transaction with order ID ${orderId} not found`);
+    }
 
-  //   return transaction;
-  // }
+    return transaction;
+  }
 
   // async findAll(): Promise<PaymentTransaction[]> {
   //   return await this.paymentTransactionRepository.find({
