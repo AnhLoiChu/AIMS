@@ -5,7 +5,7 @@ export class UpdateProductDto {
   current_price?: number;
   category?: string;
   creation_date?: Date;
-  rush_order_eligibility?: boolean;
+
   barcode?: string;
   description?: string;
   weight?: number;

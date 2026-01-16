@@ -2,7 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { BookService } from '../../book/book.service';
 import { CdService } from '../../cd/cd.service';
 import { DvdService } from '../../dvd/dvd.service';
-import { LpService } from '../../lp/lp.service';
+import { NewsService } from '../../news/news.service';
 import { ProductType } from '../dto/base-product.dto';
 import { IProductSubtypeService } from '../interfaces/product-subtype.interface';
 
@@ -19,7 +19,7 @@ export class ProductSubtypeFactory implements IProductSubtypeFactory {
     private readonly bookService: BookService,
     private readonly cdService: CdService,
     private readonly dvdService: DvdService,
-    private readonly lpService: LpService,
+    private readonly newsService: NewsService,
   ) {
     this.initializeServices();
   }
@@ -28,7 +28,7 @@ export class ProductSubtypeFactory implements IProductSubtypeFactory {
     this.serviceMap.set(ProductType.BOOK, this.bookService);
     this.serviceMap.set(ProductType.CD, this.cdService);
     this.serviceMap.set(ProductType.DVD, this.dvdService);
-    this.serviceMap.set(ProductType.LP, this.lpService);
+    this.serviceMap.set(ProductType.NEWS, this.newsService);
   }
 
   getService(type: ProductType): IProductSubtypeService<any, any, any> {
@@ -44,7 +44,7 @@ export class ProductSubtypeFactory implements IProductSubtypeFactory {
       [ProductType.BOOK]: 'book_id',
       [ProductType.CD]: 'cd_id',
       [ProductType.DVD]: 'dvd_id',
-      [ProductType.LP]: 'lp_id',
+      [ProductType.NEWS]: 'news_id',
     };
     return fieldMap[type];
   }

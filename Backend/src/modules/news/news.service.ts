@@ -2,18 +2,18 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TypeOrmCrudService } from '@dataui/crud-typeorm';
-import { LP } from './entities/lp.entity';
-import { UpdateLpDto } from './dto/update-lp.dto';
+import { News } from './entities/news.entity';
+import { UpdateNewsDto } from './dto/update-news.dto';
 import { Product } from '../product/entities/product.entity';
 import { ProductInCart } from '../product-in-cart/entities/product-in-cart.entity';
 import { OrderDescription } from '../order-description/entities/order-description.entity';
 import { EditHistory } from '../edit-history/entities/edit-history.entity';
 
 @Injectable()
-export class LpService extends TypeOrmCrudService<LP> {
+export class NewsService extends TypeOrmCrudService<News> {
   constructor(
-    @InjectRepository(LP)
-    private readonly lpRepository: Repository<LP>,
+    @InjectRepository(News)
+    private readonly newsRepository: Repository<News>,
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
     @InjectRepository(ProductInCart)
@@ -23,27 +23,27 @@ export class LpService extends TypeOrmCrudService<LP> {
     @InjectRepository(EditHistory)
     private readonly editHistoryRepository: Repository<EditHistory>,
   ) {
-    super(lpRepository);
+    super(newsRepository);
   }
 
-  async create(data: Partial<LP>): Promise<LP> {
-    const lp = this.lpRepository.create(data);
-    return this.lpRepository.save(lp);
+  async create(data: Partial<News>): Promise<News> {
+    const news = this.newsRepository.create(data);
+    return this.newsRepository.save(news);
   }
 
-  async update(id: number, updateLpDto: UpdateLpDto): Promise<LP> {
-    await this.lpRepository.update({ lp_id: id }, updateLpDto);
-    const lp = await this.lpRepository.findOne({ where: { lp_id: id } });
-    if (!lp) {
-      throw new Error(`LP with id ${id} not found`);
+  async update(id: number, updateNewsDto: UpdateNewsDto): Promise<News> {
+    await this.newsRepository.update({ news_id: id }, updateNewsDto);
+    const news = await this.newsRepository.findOne({ where: { news_id: id } });
+    if (!news) {
+      throw new Error(`News with id ${id} not found`);
     }
-    return lp;
+    return news;
   }
 
   async delete(id: number): Promise<void> {
-    const result = await this.lpRepository.delete({ lp_id: id });
+    const result = await this.newsRepository.delete({ news_id: id });
     if (result.affected === 0) {
-      throw new Error(`LP with id ${id} not found`);
+      throw new Error(`News with id ${id} not found`);
     }
   }
 
@@ -89,12 +89,12 @@ export class LpService extends TypeOrmCrudService<LP> {
         );
       }
 
-      // 4. Delete from LP (subtype)
-      const lpResult = await this.lpRepository.delete({
-        lp_id: productId,
+      // 4. Delete from News (subtype)
+      const newsResult = await this.newsRepository.delete({
+        news_id: productId,
       });
-      if (lpResult.affected && lpResult.affected > 0) {
-        deletedTables.push(`LP (${lpResult.affected} records)`);
+      if (newsResult.affected && newsResult.affected > 0) {
+        deletedTables.push(`News (${newsResult.affected} records)`);
       }
 
       // 5. Delete from Product (main table)

@@ -154,7 +154,7 @@ describe('ProductService', () => {
            current_price: 95,
            category: 'Literature',
            creation_date: new Date(),
-           rush_order_eligibility: true,
+
            barcode: '1234567890123',
            description: 'A test book',
            weight: 0.5,
@@ -193,7 +193,7 @@ describe('ProductService', () => {
           quantity: 10,
           current_price: 95,
           category: 'Literature',
-          rush_order_eligibility: true,
+
           barcode: '1234567890123',
           description: 'A test book',
           weight: 0.5,
@@ -225,7 +225,7 @@ describe('ProductService', () => {
            current_price: 95,
            category: 'Literature',
            creation_date: new Date(),
-           rush_order_eligibility: true,
+
            barcode: '1234567890123',
            description: 'A duplicate book',
            weight: 0.5,
@@ -651,6 +651,62 @@ describe('ProductService', () => {
       // Expected Output: null
       // Actual Output: null
       // Pass/Fail: Pass
+    });
+  });
+  describe('findAll', () => {
+    it('should return filtered products with pagination', async () => {
+      // Test Case ID: TC_10
+      // Test Case Name: Find products with filters
+      // Description: Find products with search, category, and price filters
+      
+      const mockQueryBuilder = {
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+      };
+
+      productRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
+
+      await service.findAll({
+        search: 'test',
+        category: 'book',
+        minPrice: 10,
+        maxPrice: 100,
+        sort: 'price_asc',
+        limit: 10
+      });
+
+      expect(productRepo.createQueryBuilder).toHaveBeenCalledWith('product');
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+        '(LOWER(product.title) LIKE LOWER(:search) OR LOWER(product.category) LIKE LOWER(:search))',
+        { search: '%test%' }
+      );
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('product.type = :category', { category: 'book' });
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('product.current_price >= :minPrice', { minPrice: 10 });
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('product.current_price <= :maxPrice', { maxPrice: 100 });
+      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith('product.current_price', 'ASC');
+      expect(mockQueryBuilder.take).toHaveBeenCalledWith(10);
+    });
+
+    it('should sort by random when sort param is random', async () => {
+        const mockQueryBuilder = {
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          orderBy: jest.fn().mockReturnThis(),
+          take: jest.fn().mockReturnThis(),
+          getMany: jest.fn().mockResolvedValue([]),
+        };
+  
+        productRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
+  
+        await service.findAll({
+          limit: 20,
+          sort: 'random'
+        });
+  
+        expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith('RANDOM()');
     });
   });
 });

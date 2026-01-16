@@ -4,6 +4,8 @@ import { LoginForm } from '@/components/auth/LoginForm';
 import { CustomerDashboard } from '@/components/dashboards/CustomerDashboard';
 import { ProductManagerDashboard } from '@/components/dashboards/ProductManagerDashboard';
 import { AdminDashboard } from '@/components/dashboards/AdminDashboard';
+import { apiService } from '@/services/api';
+import { useEffect } from 'react';
 
 export interface User {
   id: string;
@@ -15,6 +17,13 @@ export interface User {
 const Index = () => {
   const [user, setUser] = useState<User | null>(null);
   const [currentRole, setCurrentRole] = useState<'customer' | 'manager' | 'admin'>('customer');
+
+  useEffect(() => {
+    const storedUser = apiService.getUser();
+    if (storedUser) {
+      handleLogin(storedUser);
+    }
+  }, []);
 
   const handleLogin = (userData: User) => {
     setUser(userData);
@@ -35,6 +44,7 @@ const Index = () => {
   const handleLogout = () => {
     setUser(null);
     setCurrentRole('customer');
+    apiService.clearToken();
   };
 
   const handleRoleSwitch = (role: 'customer' | 'manager' | 'admin') => {

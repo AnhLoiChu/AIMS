@@ -3,12 +3,12 @@ import { Type } from 'class-transformer';
 import { CreateBookDto } from '../../book/dto/create-book.dto';
 import { CreateCdDto } from '../../cd/dto/create-cd.dto';
 import { CreateDvdDto } from '../../dvd/dto/create-dvd.dto';
-import { CreateLpDto } from '../../lp/dto/create-lp.dto';
+import { CreateNewsDto } from '../../news/dto/create-news.dto';
 import { ProductType } from './base-product.dto';
 import { BaseProductDto } from './base-product.dto';
 import { ApiProperty, ApiExtraModels, getSchemaPath } from '@nestjs/swagger';
 
-@ApiExtraModels(CreateBookDto, CreateCdDto, CreateDvdDto, CreateLpDto)
+@ApiExtraModels(CreateBookDto, CreateCdDto, CreateDvdDto, CreateNewsDto)
 export class CreateProductDto extends BaseProductDto {
   @ApiProperty({ enum: ProductType, description: 'Type of the product' })
   @IsEnum(ProductType)
@@ -19,7 +19,7 @@ export class CreateProductDto extends BaseProductDto {
       { $ref: getSchemaPath(CreateBookDto) },
       { $ref: getSchemaPath(CreateCdDto) },
       { $ref: getSchemaPath(CreateDvdDto) },
-      { $ref: getSchemaPath(CreateLpDto) },
+      { $ref: getSchemaPath(CreateNewsDto) },
     ],
     description: 'Subtype fields depending on the product type',
   })
@@ -32,11 +32,11 @@ export class CreateProductDto extends BaseProductDto {
         return CreateCdDto;
       case ProductType.DVD:
         return CreateDvdDto;
-      case ProductType.LP:
-        return CreateLpDto;
+      case ProductType.NEWS:
+        return CreateNewsDto;
       default:
         return Object;
     }
   })
-  subtypeFields: CreateBookDto | CreateCdDto | CreateDvdDto | CreateLpDto;
+  subtypeFields: CreateBookDto | CreateCdDto | CreateDvdDto | CreateNewsDto;
 }

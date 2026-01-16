@@ -16,6 +16,16 @@ class ApiService {
   clearToken() {
     this.token = null;
     localStorage.removeItem("auth_token");
+    localStorage.removeItem("user_info");
+  }
+
+  getUser() {
+    const userStr = localStorage.getItem("user_info");
+    return userStr ? JSON.parse(userStr) : null;
+  }
+
+  setUser(user: any) {
+    localStorage.setItem("user_info", JSON.stringify(user));
   }
 
   private async request(endpoint: string, options: RequestInit = {}) {
@@ -77,8 +87,25 @@ class ApiService {
     return { token, user_id: id, roles };
   }
 
-  async getProducts(limit: number = 30): Promise<Product[]> {
-    return this.request(`/products?limit=${limit}`);
+  async getProducts(params: {
+    limit?: number;
+    search?: string;
+    category?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    sort?: string;
+  } = {}): Promise<Product[]> {
+    const query = new URLSearchParams();
+    // Default limit if not provided
+    query.append("limit", (params.limit || 30).toString());
+
+    if (params.search) query.append("search", params.search);
+    if (params.category && params.category !== "all") query.append("category", params.category);
+    if (params.minPrice) query.append("minPrice", params.minPrice.toString());
+    if (params.maxPrice) query.append("maxPrice", params.maxPrice.toString());
+    if (params.sort) query.append("sort", params.sort);
+
+    return this.request(`/products?${query.toString()}`);
   }
 
   async getProductDetail(productId: number): Promise<ProductDetail> {
@@ -135,7 +162,7 @@ class ApiService {
   async createOrder(
     cartId: number,
     productIds: number[]
-  ): Promise<{ order: any; orderDescriptions: any; rushable: boolean }> {
+  ): Promise<{ order: any; orderDescriptions: any }> {
     return this.request("/order/create", {
       method: "POST",
       body: JSON.stringify({
@@ -145,19 +172,7 @@ class ApiService {
     });
   }
 
-  async createRushedOrderDeliveryInfo(
-    orderData: RushOrderDeliveryInfo
-  ): Promise<{
-    success: boolean;
-    message?: string;
-    eligibilityMessage?: string;
-    updateMessage?: string;
-  }> {
-    return this.request(`/order/create-rush`, {
-      method: "POST",
-      body: JSON.stringify(orderData),
-    });
-  }
+
 
   async createNormalOrderDeliveryInfo(
     orderData: NormalOrderDeliveryInfo
@@ -201,12 +216,11 @@ export interface Product {
   category: string;
   manager_id: number;
   creation_date: string;
-  rush_order_eligibility: boolean;
   barcode: string;
   description: string;
   weight: number;
   dimensions: string;
-  type: "book" | "cd" | "dvd" | "lp";
+  type: "book" | "cd" | "dvd" | "news";
   warehouse_entrydate: string;
 }
 
@@ -242,32 +256,26 @@ export interface DVDDetail {
   genre: string;
 }
 
-export interface LPDetail {
-  lp_id: number;
-  genre: string;
-  artist: string;
-  record_label: string;
-  tracklist: string;
-  release_date: string;
+export interface NewsDetail {
+  news_id: number;
+  editor_in_chief: string;
+  publisher: string;
+  publication_date: string;
+  issue_number: string;
+  publication_frequency: string;
+  issn: string;
+  language: string;
+  sections: string;
 }
 
 export interface ProductDetail extends Product {
   book?: BookDetail;
   cd?: CDDetail;
   dvd?: DVDDetail;
-  lp?: LPDetail;
+  news?: NewsDetail;
 }
 
-export interface RushOrderDeliveryInfo {
-  order_id: number;
-  recipient_name: string;
-  email: string;
-  phone: string;
-  province: string;
-  address: string;
-  instruction?: string | null;
-  delivery_time?: Date | null;
-}
+
 
 export interface NormalOrderDeliveryInfo {
   order_id: number;

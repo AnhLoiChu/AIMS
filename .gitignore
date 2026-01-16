@@ -1,3 +1,33 @@
+# Systems
 .DS_Store
-node_modules
-.env 
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Dependencies
+node_modules/
+
+# Build
+dist/
+build/
+out/
+coverage/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log
+
+# Misc
+.gemini/
+.agent/
+tmp/

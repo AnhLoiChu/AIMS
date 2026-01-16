@@ -35,6 +35,7 @@ export const LoginForm = ({ onLogin }: LoginFormProps) => {
         };
 
         onLogin(user);
+        apiService.setUser(user);
       }
     } catch (err) {
       console.error('Login error:', err);

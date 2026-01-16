@@ -6,11 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ProductForm } from './ProductForm';
 import { Plus, Edit, Trash2 } from 'lucide-react';
+import { formatVNDShort } from '@/utils/format';
 
 interface Product {
   id: string;
   title: string;
-  category: 'book' | 'cd' | 'lp' | 'dvd';
+  category: 'book' | 'cd' | 'news' | 'dvd';
   value: number;
   current_price: number;
   quantity: number;
@@ -172,12 +173,12 @@ export const ProductManagement = () => {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Value:</span>
-                  <span>${product.value.toFixed(2)}</span>
+                  <span>{formatVNDShort(product.value)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Current Price:</span>
                   <span className="font-semibold text-green-600">
-                    ${product.current_price.toFixed(2)}
+                    {formatVNDShort(product.current_price)}
                   </span>
                 </div>
                 <div className="flex justify-between">

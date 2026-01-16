@@ -39,8 +39,5 @@ export class OrderDescriptionController
   //   return await this.service.createOrderDescription(orderId, productIds);
   // }
 
-  @Get('check-rush-order-eligibility/:order_id')
-  async checkRushOrderEligibility(@Param('order_id') orderId: number) {
-    return await this.service.checkRushOrderEligibilityBeforeHand(orderId);
-  }
+
 }

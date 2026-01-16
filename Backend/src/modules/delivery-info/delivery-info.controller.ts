@@ -51,7 +51,7 @@ export class DeliveryInfoController implements CrudController<DeliveryInfo> {
       createDeliveryInfoDto,
     );
 
-    // calcualte sum of normal and rush delivery
+    // calcualte sum of normal delivery
     const { normalSubtotal, normalDeliveryFee } =
       await this.orderService.calculateNormalDeliveryFee(orderId);
 

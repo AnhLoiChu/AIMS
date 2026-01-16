@@ -3,12 +3,12 @@ import { Type } from 'class-transformer';
 import { UpdateBookDto } from '../../book/dto/update-book.dto';
 import { UpdateCdDto } from '../../cd/dto/update-cd.dto';
 import { UpdateDvdDto } from '../../dvd/dto/update-dvd.dto';
-import { UpdateLpDto } from '../../lp/dto/update-lp.dto';
+import { UpdateNewsDto } from '../../news/dto/update-news.dto';
 import { ProductType } from './base-product.dto';
 import { UpdateProductDto } from './update-product.dto';
 import { ApiProperty, ApiExtraModels, getSchemaPath } from '@nestjs/swagger';
 
-@ApiExtraModels(UpdateBookDto, UpdateCdDto, UpdateDvdDto, UpdateLpDto)
+@ApiExtraModels(UpdateBookDto, UpdateCdDto, UpdateDvdDto, UpdateNewsDto)
 export class UpdateFullProductDto extends UpdateProductDto {
 
   @ApiProperty({
@@ -16,7 +16,7 @@ export class UpdateFullProductDto extends UpdateProductDto {
       { $ref: getSchemaPath(UpdateBookDto) },
       { $ref: getSchemaPath(UpdateCdDto) },
       { $ref: getSchemaPath(UpdateDvdDto) },
-      { $ref: getSchemaPath(UpdateLpDto) },
+      { $ref: getSchemaPath(UpdateNewsDto) },
     ],
     description: 'Subtype fields depending on the product type',
     required: false,
@@ -31,13 +31,13 @@ export class UpdateFullProductDto extends UpdateProductDto {
         return UpdateCdDto;
       case ProductType.DVD:
         return UpdateDvdDto;
-      case ProductType.LP:
-        return UpdateLpDto;
+      case ProductType.NEWS:
+        return UpdateNewsDto;
       default:
         return Object;
     }
   })
-  subtypeFields?: UpdateBookDto | UpdateCdDto | UpdateDvdDto | UpdateLpDto;
+  subtypeFields?: UpdateBookDto | UpdateCdDto | UpdateDvdDto | UpdateNewsDto;
 
   @ApiProperty({ 
     example: 2,
