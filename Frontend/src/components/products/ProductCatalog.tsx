@@ -149,7 +149,7 @@ export const ProductCatalog = ({ onAddToCart }: ProductCatalogProps) => {
               <SelectItem value="random">Random</SelectItem>
             </SelectContent>
           </Select>
-          
+
           <div className="flex flex-col gap-2 min-w-[350px]">
             <span className="text-sm font-medium">
               Price: {formatVNDShort(priceRange[0])} - {formatVNDShort(priceRange[1])}
@@ -175,80 +175,87 @@ export const ProductCatalog = ({ onAddToCart }: ProductCatalogProps) => {
           <div className="text-lg">Loading products...</div>
         </div>
       ) : (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {paginatedProducts.map((product) => (
-          <Card key={product.product_id} className="hover:shadow-lg transition-shadow cursor-pointer">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <CardTitle 
-                  className="text-lg line-clamp-2 cursor-pointer hover:text-blue-600"
-                  onClick={() => handleProductClick(product.product_id)}
-                >
-                  {getCategoryIcon(product.type)} {product.title}
-                </CardTitle>
-                <div className="flex flex-col gap-1">
-                  <Badge variant="secondary" className="ml-2">
-                    {product.type.toUpperCase()}
-                  </Badge>
-                </div>
-              </div>
-              <div className="text-sm text-gray-600">
-                <p className="line-clamp-2">{product.description}</p>
-                <p className="mt-1 font-medium">{product.category}</p>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-xl font-bold text-green-600">
-                      {formatVNDShort(product.current_price)}
-                    </p>
-                    {product.value !== product.current_price && (
-                      <p className="text-sm text-gray-500 line-through">
-                        {formatVNDShort(product.value)}
-                      </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {paginatedProducts.map((product) => (
+            <Card key={product.product_id} className="hover:shadow-lg transition-shadow cursor-pointer">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <CardTitle
+                    className="text-lg line-clamp-2 cursor-pointer hover:text-blue-600"
+                    onClick={() => handleProductClick(product.product_id)}
+                  >
+                    {getCategoryIcon(product.type)} {product.title}
+                  </CardTitle>
+                  <div className="flex flex-col gap-1">
+                    <Badge variant="secondary" className="ml-2">
+                      {product.type.toUpperCase()}
+                    </Badge>
+                    {product.quantity <= 0 && (
+                      <Badge variant="destructive" className="ml-2">
+                        OUT OF STOCK
+                      </Badge>
                     )}
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-600">Stock: {product.quantity}</p>
-                    <p className="text-xs text-gray-500">{product.weight}kg</p>
-                  </div>
                 </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Input
-                    type="number"
-                    min="1"
-                    max={product.quantity}
-                    value={selectedQuantities[product.product_id] || 1}
-                    onChange={(e) => setSelectedQuantities(prev => ({
-                      ...prev,
-                      [product.product_id]: parseInt(e.target.value) || 1
-                    }))}
-                    className="w-20"
-                  />
+                <div className="text-sm text-gray-600">
+                  <p className="line-clamp-2">{product.description}</p>
+                  <p className="mt-1 font-medium">{product.category}</p>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-xl font-bold text-green-600">
+                        {formatVNDShort(product.current_price)}
+                      </p>
+                      {product.value !== product.current_price && (
+                        <p className="text-sm text-gray-500 line-through">
+                          {formatVNDShort(product.value)}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-sm font-semibold ${product.quantity > 0 ? 'text-gray-600' : 'text-red-600'}`}>
+                        {product.quantity > 0 ? `Stock: ${product.quantity}` : 'Out of Stock'}
+                      </p>
+                      <p className="text-xs text-gray-500">{product.weight}kg</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      type="number"
+                      min="1"
+                      max={product.quantity}
+                      value={selectedQuantities[product.product_id] || 1}
+                      onChange={(e) => setSelectedQuantities(prev => ({
+                        ...prev,
+                        [product.product_id]: parseInt(e.target.value) || 1
+                      }))}
+                      className="w-20"
+                    />
+                    <Button
+                      onClick={() => handleAddToCart(product)}
+                      disabled={product.quantity === 0}
+                      className={`flex-1 ${product.quantity === 0 ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
+                    >
+                      {product.quantity === 0 ? 'Unavailable' : 'Add to Cart'}
+                    </Button>
+                  </div>
+
                   <Button
-                    onClick={() => handleAddToCart(product)}
-                    disabled={product.quantity === 0}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700"
+                    variant="outline"
+                    onClick={() => handleProductClick(product.product_id)}
+                    className="w-full text-sm"
                   >
-                    Add to Cart
+                    View Details
                   </Button>
                 </div>
-                
-                <Button
-                  variant="outline"
-                  onClick={() => handleProductClick(product.product_id)}
-                  className="w-full text-sm"
-                >
-                  View Details
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
 
       {totalPages > 1 && (

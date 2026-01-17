@@ -56,4 +56,7 @@ export class Product {
 
   @Column('timestamp')
   warehouse_entrydate: Date;
+
+  @Column({ default: true })
+  is_active: boolean;
 }

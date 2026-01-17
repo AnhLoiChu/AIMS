@@ -20,7 +20,7 @@ import { Roles } from './guards/role.guard';
 import { ApiBearerAuth } from '@nestjs/swagger';
 @Controller('products')
 export class ProductController {
-  constructor(private readonly productService: ProductService) {}
+  constructor(private readonly productService: ProductService) { }
   @ApiBearerAuth()
   @UseGuards(ManagerProductOwnershipGuard, RolesGuard)
   @Roles('manager', 'admin')
@@ -66,6 +66,7 @@ export class ProductController {
     @Query('maxPrice') maxPrice?: string,
     @Query('sort') sort?: string,
     @Query('limit') limit?: string,
+    @Query('includeInactive') includeInactive?: string,
   ) {
     const effectiveLimit = limit ? parseInt(limit, 10) : 20;
     return this.productService.findAll({
@@ -75,6 +76,7 @@ export class ProductController {
       maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
       sort,
       limit: effectiveLimit,
+      includeInactive: includeInactive === 'true',
     });
   }
   @ApiBearerAuth()

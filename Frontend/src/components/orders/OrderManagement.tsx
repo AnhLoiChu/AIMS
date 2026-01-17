@@ -56,9 +56,11 @@ export const OrderManagement = () => {
       await apiService.approveOrder(orderId, 'Shipping');
       toast.success(`Order #${orderId} approved`);
       fetchOrders(); // Refresh list
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to approve order:", error);
-      toast.error("Failed to approve order");
+      // Attempt to get backend error message
+      const message = error.message || "Failed to approve order";
+      toast.error(message);
     }
   };
 

@@ -191,6 +191,9 @@ export const ProductDetail = ({ productId, onBack, onAddToCart }: ProductDetailP
               <div className="flex items-center gap-2 mt-2">
                 <Badge variant="secondary">{product.type.toUpperCase()}</Badge>
                 <Badge variant="outline">{product.category}</Badge>
+                {product.quantity <= 0 && (
+                  <Badge variant="destructive">OUT OF PRODUCT</Badge>
+                )}
               </div>
             </div>
             <div className="text-right">
@@ -213,7 +216,9 @@ export const ProductDetail = ({ productId, onBack, onAddToCart }: ProductDetailP
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
               <span className="font-medium text-gray-600">Stock:</span>
-              <div className="text-lg font-semibold">{product.quantity}</div>
+              <div className={`text-lg font-bold ${product.quantity > 0 ? 'text-black' : 'text-red-600'}`}>
+                {product.quantity > 0 ? product.quantity : 'Out of Stock'}
+              </div>
             </div>
             <div>
               <span className="font-medium text-gray-600">Weight:</span>
@@ -251,10 +256,10 @@ export const ProductDetail = ({ productId, onBack, onAddToCart }: ProductDetailP
             <Button
               onClick={handleAddToCart}
               disabled={product.quantity === 0}
-              className="bg-blue-600 hover:bg-blue-700"
+              className={`px-8 ${product.quantity === 0 ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
             >
               <ShoppingCart className="h-4 w-4 mr-2" />
-              Add to Cart
+              {product.quantity === 0 ? 'Out of Product' : 'Add to Cart'}
             </Button>
           </div>
 

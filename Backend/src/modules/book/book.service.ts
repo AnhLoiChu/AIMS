@@ -33,7 +33,9 @@ export class BookService extends TypeOrmCrudService<Book> {
   }
 
   async update(id: number, updateBookDto: UpdateBookDto): Promise<Book> {
-    await this.bookRepository.update({ book_id: id }, updateBookDto);
+    if (Object.keys(updateBookDto).length > 0) {
+      await this.bookRepository.update({ book_id: id }, updateBookDto);
+    }
     const book = await this.bookRepository.findOne({ where: { book_id: id } });
     if (!book) {
       throw new Error(`Book with id ${id} not found`);

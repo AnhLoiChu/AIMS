@@ -25,7 +25,7 @@ export class ProductService {
     private readonly cascadeDeletionService: CascadeDeletionService,
     private readonly editHistoryService: EditHistoryService,
     private readonly userService: UserService,
-  ) {}
+  ) { }
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
     const { type, subtypeFields, ...baseFields } = createProductDto;
@@ -97,9 +97,14 @@ export class ProductService {
     maxPrice?: number;
     sort?: string;
     limit: number;
+    includeInactive?: boolean;
   }): Promise<Product[]> {
-    const { search, category, minPrice, maxPrice, sort, limit } = params;
+    const { search, category, minPrice, maxPrice, sort, limit, includeInactive } = params;
     const qb = this.productRepo.createQueryBuilder('product');
+
+    if (!includeInactive) {
+      qb.andWhere('product.is_active = true');
+    }
 
     if (search) {
       qb.andWhere(
@@ -186,7 +191,7 @@ export class ProductService {
     }
 
     // Update subtype if needed using factory
-    if (subtypeFields) {
+    if (subtypeFields && Object.keys(subtypeFields).length > 0) {
       const subtypeService = this.productSubtypeFactory.getService(
         existingProduct.type as ProductType,
       );

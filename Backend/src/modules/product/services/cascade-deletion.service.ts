@@ -24,7 +24,7 @@ export class CascadeDeletionService {
     @InjectRepository(Product)
     private readonly productRepo: Repository<Product>,
     private readonly userService: UserService,
-  ) {}
+  ) { }
 
   async deleteProducts(
     products: Product[],
@@ -34,7 +34,8 @@ export class CascadeDeletionService {
       id: number;
       title: string;
       type: string;
-      cascadeDetails: string[];
+      action: 'DELETED' | 'DEACTIVATED';
+      cascadeDetails?: string[];
     }> = [];
     const errors: Array<{
       id: number;
@@ -44,22 +45,40 @@ export class CascadeDeletionService {
 
     for (const product of products) {
       try {
-        // Delete subtype first
-        const subtypeService = subtypeFactory.getService(product.type);
-        await subtypeService.delete(product.product_id);
+        if (product.quantity > 0) {
+          // Rule: If stock > 0, deactivate instead of deleting
+          console.log(`[CascadeDeletionService] Product ${product.product_id} has stock > 0. Deactivating instead of deleting.`);
+          await this.productRepo.update(product.product_id, { is_active: false });
 
-        // Delete related records
-        const cascadeResult = await this.deleteCascadeRelatedRecords(product.product_id);
+          deletedProducts.push({
+            id: product.product_id,
+            title: product.title,
+            type: product.type,
+            action: 'DEACTIVATED'
+          });
+        } else {
+          // Rule: If stock = 0, perform actual deletion
+          console.log(`[CascadeDeletionService] Product ${product.product_id} has 0 stock. Performing full deletion.`);
 
-        // Increment manager delete count
+          // Delete subtype first
+          const subtypeService = subtypeFactory.getService(product.type);
+          await subtypeService.delete(product.product_id);
+
+          // Delete related records
+          const cascadeResult = await this.deleteCascadeRelatedRecords(product.product_id);
+
+          deletedProducts.push({
+            id: product.product_id,
+            title: product.title,
+            type: product.type,
+            action: 'DELETED',
+            cascadeDetails: cascadeResult.deletedTables
+          });
+        }
+
+        // Increment manager delete count (both deletion and deactivation count towards the daily limit)
         await this.userService.incrementDeleteCount(product.manager_id);
 
-        deletedProducts.push({
-          id: product.product_id,
-          title: product.title,
-          type: product.type,
-          cascadeDetails: cascadeResult.deletedTables
-        });
       } catch (error: any) {
         errors.push({
           id: product.product_id,
@@ -69,13 +88,18 @@ export class CascadeDeletionService {
       }
     }
 
+    const deletedCount = deletedProducts.filter(p => p.action === 'DELETED').length;
+    const deactivatedCount = deletedProducts.filter(p => p.action === 'DEACTIVATED').length;
+
     return {
       success: deletedProducts.length > 0,
-      deletedCount: deletedProducts.length,
+      deletedCount: deletedCount,
+      deactivatedCount: deactivatedCount,
+      totalProcessed: deletedProducts.length,
       errorCount: errors.length,
-      deletedProducts,
+      results: deletedProducts,
       errors: errors.length > 0 ? errors : undefined,
-      message: `Đã xóa thành công ${deletedProducts.length}/${products.length} sản phẩm`,
+      message: `Đã xử lý ${deletedProducts.length}/${products.length} sản phẩm (Xóa: ${deletedCount}, Ngừng kinh doanh: ${deactivatedCount})`,
     };
   }
 
@@ -86,32 +110,32 @@ export class CascadeDeletionService {
 
     try {
       // 1. Delete from ProductInCart (products in shopping carts)
-      const productInCartResult = await this.productInCartRepo.delete({ 
-        product_id: productId 
+      const productInCartResult = await this.productInCartRepo.delete({
+        product_id: productId
       });
       if (productInCartResult.affected && productInCartResult.affected > 0) {
         deletedTables.push(`ProductInCart (${productInCartResult.affected} records)`);
       }
 
       // 2. Delete from OrderDescription (products in orders)
-      const orderDescriptionResult = await this.orderDescriptionRepo.delete({ 
-        product_id: productId 
+      const orderDescriptionResult = await this.orderDescriptionRepo.delete({
+        product_id: productId
       });
       if (orderDescriptionResult.affected && orderDescriptionResult.affected > 0) {
         deletedTables.push(`OrderDescription (${orderDescriptionResult.affected} records)`);
       }
 
       // 3. Delete from EditHistory (edit history records)
-      const editHistoryResult = await this.editHistoryRepo.delete({ 
-        product_id: productId 
+      const editHistoryResult = await this.editHistoryRepo.delete({
+        product_id: productId
       });
       if (editHistoryResult.affected && editHistoryResult.affected > 0) {
         deletedTables.push(`EditHistory (${editHistoryResult.affected} records)`);
       }
 
       // 4. Finally delete from Product (main table)
-      const productResult = await this.productRepo.delete({ 
-        product_id: productId 
+      const productResult = await this.productRepo.delete({
+        product_id: productId
       });
       if (productResult.affected && productResult.affected > 0) {
         deletedTables.push(`Product (${productResult.affected} records)`);

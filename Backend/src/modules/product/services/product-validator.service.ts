@@ -18,8 +18,8 @@ export class ProductValidatorService implements IProductValidator {
     await this.checkDuplicateProduct(dto.title, dto.barcode, dto.manager_id);
 
     // Check quantity validation
-    if (dto.quantity <= 0) {
-      throw new BadRequestException('Số lượng sản phẩm khi thêm mới phải lớn hơn 0');
+    if (dto.quantity < 0) {
+      throw new BadRequestException('Số lượng sản phẩm khi thêm mới không được âm');
     }
   }
 
@@ -46,8 +46,8 @@ export class ProductValidatorService implements IProductValidator {
     }
 
     // Check quantity validation
-    if (dto.quantity !== undefined && dto.quantity <= 0) {
-      throw new BadRequestException('Số lượng sản phẩm cập nhật phải lớn hơn 0');
+    if (dto.quantity !== undefined && dto.quantity < 0) {
+      throw new BadRequestException('Số lượng sản phẩm cập nhật không được âm');
     }
   }
 

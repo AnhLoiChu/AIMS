@@ -32,7 +32,9 @@ export class CdService extends TypeOrmCrudService<CD> {
   }
 
   async update(id: number, updateCdDto: UpdateCdDto): Promise<CD> {
-    await this.cdRepository.update({ cd_id: id }, updateCdDto);
+    if (Object.keys(updateCdDto).length > 0) {
+      await this.cdRepository.update({ cd_id: id }, updateCdDto);
+    }
     const cd = await this.cdRepository.findOne({ where: { cd_id: id } });
     if (!cd) {
       throw new Error(`CD with id ${id} not found`);

@@ -94,6 +94,7 @@ class ApiService {
     minPrice?: number;
     maxPrice?: number;
     sort?: string;
+    includeInactive?: boolean;
   } = {}): Promise<Product[]> {
     const query = new URLSearchParams();
     // Default limit if not provided
@@ -104,6 +105,7 @@ class ApiService {
     if (params.minPrice) query.append("minPrice", params.minPrice.toString());
     if (params.maxPrice) query.append("maxPrice", params.maxPrice.toString());
     if (params.sort) query.append("sort", params.sort);
+    if (params.includeInactive) query.append("includeInactive", "true");
 
     return this.request(`/products?${query.toString()}`);
   }
@@ -171,8 +173,6 @@ class ApiService {
       }),
     });
   }
-
-
 
   async createNormalOrderDeliveryInfo(
     orderData: NormalOrderDeliveryInfo
@@ -338,6 +338,7 @@ export interface Product {
   dimensions: string;
   type: "book" | "cd" | "dvd" | "news";
   warehouse_entrydate: string;
+  is_active: boolean;
 }
 
 export interface BookDetail {
@@ -416,8 +417,6 @@ export interface ProductDetail extends Product {
   issn?: string;
   sections?: string;
 }
-
-
 
 export interface NormalOrderDeliveryInfo {
   order_id: number;

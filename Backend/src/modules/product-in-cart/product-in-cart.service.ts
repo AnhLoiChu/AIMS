@@ -42,25 +42,30 @@ export class ProductInCartService extends TypeOrmCrudService<ProductInCart> {
     }
 
     // check if product already in cart and if product quantity is sufficient
-    let productInCart = await this.productInCartRepository.findOne({
+    const productInCart = await this.productInCartRepository.findOne({
       where: { cart_id: cartId, product_id: productId },
     });
 
-    if (product.quantity > quantity) {
+    const currentQuantityInCart = productInCart ? productInCart.quantity : 0;
+    const totalRequestedQuantity = currentQuantityInCart + quantity;
+
+    if (product.quantity >= totalRequestedQuantity) {
       if (productInCart) {
-        productInCart.quantity += quantity;
+        productInCart.quantity = totalRequestedQuantity;
       } else {
-        productInCart = this.productInCartRepository.create({
-          cart_id: cartId,
-          product_id: productId,
-          quantity,
-          cart,
-          product,
-        });
+        return this.productInCartRepository.save(
+          this.productInCartRepository.create({
+            cart_id: cartId,
+            product_id: productId,
+            quantity: totalRequestedQuantity,
+            cart,
+            product,
+          }),
+        );
       }
     } else {
       throw new BadRequestException(
-        `Product with ID ${productId} has insufficient quantity: ${product.quantity} left`,
+        `Product with ID ${productId} has insufficient quantity. Available: ${product.quantity}, currently in cart: ${currentQuantityInCart}`,
       );
     }
     return this.productInCartRepository.save(productInCart);

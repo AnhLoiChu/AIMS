@@ -16,6 +16,7 @@ interface Product {
   value: number;
   current_price: number;
   quantity: number;
+  is_active: boolean;
   creation_date: string;
 }
 
@@ -36,7 +37,7 @@ export const ProductManagement = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiService.getProducts({ limit: 100 });
+      const data = await apiService.getProducts({ limit: 100, includeInactive: true });
       setProducts(data.map((p: any) => ({
         id: p.product_id.toString(),
         title: p.title,
@@ -44,6 +45,7 @@ export const ProductManagement = () => {
         value: p.value,
         current_price: p.current_price,
         quantity: p.quantity,
+        is_active: p.is_active,
         creation_date: new Date(p.creation_date).toISOString().split('T')[0]
       })));
     } catch (err: any) {
@@ -59,7 +61,7 @@ export const ProductManagement = () => {
       // Get logged-in user's ID
       const user = apiService.getUser();
       const managerId = user?.user_id || user?.id || 1;
-      
+
       const payload = {
         title: productData.title,
         value: productData.value,
@@ -75,7 +77,7 @@ export const ProductManagement = () => {
         manager_id: managerId,
         subtypeFields: buildSubtypeFields(productData)
       };
-      
+
       await apiService.createProduct(payload);
       await fetchProducts();
       setShowForm(false);
@@ -86,7 +88,7 @@ export const ProductManagement = () => {
 
   const handleEditProduct = async (productData: any) => {
     if (!editingProduct) return;
-    
+
     try {
       const payload = {
         title: productData.title,
@@ -100,7 +102,7 @@ export const ProductManagement = () => {
         dimensions: productData.dimensions || '10x10x10',
         subtypeFields: buildSubtypeFields(productData)
       };
-      
+
       await apiService.updateProduct(parseInt(editingProduct.id), payload);
       await fetchProducts();
       setEditingProduct(null);
@@ -115,7 +117,7 @@ export const ProductManagement = () => {
       alert('Cannot delete more than 10 products at once');
       return;
     }
-    
+
     try {
       const productIds = selectedProducts.map(id => parseInt(id));
       await apiService.deleteProducts(productIds);
@@ -217,8 +219,8 @@ export const ProductManagement = () => {
         <h2 className="text-2xl font-bold">Product Management</h2>
         <div className="flex space-x-2">
           {selectedProducts.length > 0 && (
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={handleDeleteProducts}
               disabled={selectedProducts.length > 10}
             >
@@ -226,7 +228,7 @@ export const ProductManagement = () => {
               Delete Selected ({selectedProducts.length})
             </Button>
           )}
-          <Button 
+          <Button
             onClick={() => setShowForm(true)}
             className="bg-blue-600 hover:bg-blue-700"
           >
@@ -262,6 +264,11 @@ export const ProductManagement = () => {
                     <Badge variant="secondary" className="mt-1">
                       {product.category.toUpperCase()}
                     </Badge>
+                    {!product.is_active && (
+                      <Badge variant="destructive" className="mt-1 ml-2">
+                        NGỪNG KINH DOANH
+                      </Badge>
+                    )}
                   </div>
                 </div>
                 <Button
@@ -328,6 +335,12 @@ export const ProductManagement = () => {
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Stock:</span>
                   <span>{product.quantity}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Status:</span>
+                  <span className={product.is_active ? "text-green-600" : "text-red-600"}>
+                    {product.is_active ? "Kinh doanh" : "Ngừng kinh doanh"}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Created:</span>

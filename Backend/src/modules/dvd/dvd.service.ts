@@ -32,7 +32,9 @@ export class DvdService extends TypeOrmCrudService<DVD> {
   }
 
   async update(id: number, updateDvdDto: UpdateDvdDto): Promise<DVD> {
-    await this.dvdRepository.update({ dvd_id: id }, updateDvdDto);
+    if (Object.keys(updateDvdDto).length > 0) {
+      await this.dvdRepository.update({ dvd_id: id }, updateDvdDto);
+    }
     const dvd = await this.dvdRepository.findOne({ where: { dvd_id: id } });
     if (!dvd) {
       throw new Error(`DVD with id ${id} not found`);

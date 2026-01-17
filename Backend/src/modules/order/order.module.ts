@@ -12,6 +12,7 @@ import { PaymentTransaction } from '../payment-transaction/entities/payment-tran
 import { DeliveryInfo } from '../delivery-info/entities/delivery-info.entity';
 import { DeliveryInfoModule } from '../delivery-info/delivery-info.module';
 import { FeeCalculationModule } from '../fee-calculation/fee-calculation.module';
+import { Product } from '../product/entities/product.entity';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { FeeCalculationModule } from '../fee-calculation/fee-calculation.module'
       OrderDescription,
       PaymentTransaction,
       DeliveryInfo,
+      Product,
     ]),
     OrderDescriptionModule,
     DeliveryInfoModule,

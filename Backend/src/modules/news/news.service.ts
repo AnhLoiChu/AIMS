@@ -32,7 +32,9 @@ export class NewsService extends TypeOrmCrudService<News> {
   }
 
   async update(id: number, updateNewsDto: UpdateNewsDto): Promise<News> {
-    await this.newsRepository.update({ news_id: id }, updateNewsDto);
+    if (Object.keys(updateNewsDto).length > 0) {
+      await this.newsRepository.update({ news_id: id }, updateNewsDto);
+    }
     const news = await this.newsRepository.findOne({ where: { news_id: id } });
     if (!news) {
       throw new Error(`News with id ${id} not found`);

@@ -12,6 +12,7 @@ import { Cart } from '../cart/entities/cart.entity';
 import { OrderDescription } from '../order-description/entities/order-description.entity';
 import { PaymentTransaction } from '../payment-transaction/entities/payment-transaction.entity';
 import { DeliveryInfo } from '../delivery-info/entities/delivery-info.entity';
+import { Product } from '../product/entities/product.entity';
 import { ApproveOrderDto } from './dto/approve-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { OrderStatus } from './dto/order-status.enum';
@@ -36,6 +37,8 @@ export class OrderService extends TypeOrmCrudService<Order> {
     public readonly paymentTransactionRepository: Repository<PaymentTransaction>,
     @InjectRepository(DeliveryInfo)
     public readonly deliveryInfoRepository: Repository<DeliveryInfo>,
+    @InjectRepository(Product)
+    public readonly productRepository: Repository<Product>,
     private readonly schedulerRegistry: SchedulerRegistry,
     private readonly orderDescriptionService: OrderDescriptionService,
     private readonly deliveryInfoService: DeliveryInfoService,
@@ -334,27 +337,63 @@ export class OrderService extends TypeOrmCrudService<Order> {
   }
 
   async approveOrRejectOrder(orderId: number, dto: ApproveOrderDto) {
-    const order = await this.orderRepository.findOne({
-      where: { order_id: orderId },
-    });
-    if (!order) throw new NotFoundException('Order not found');
-    if (order.status !== OrderStatus.PENDING) {
-      throw new BadRequestException(
-        'Order is not pending and cannot be approved/rejected',
-      );
+    const queryRunner = this.orderRepository.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const order = await queryRunner.manager.findOne(Order, {
+        where: { order_id: orderId },
+      });
+
+      if (!order) throw new NotFoundException('Order not found');
+      if (order.status !== OrderStatus.PENDING) {
+        throw new BadRequestException(
+          'Order is not pending and cannot be approved/rejected',
+        );
+      }
+
+      if (dto.status === OrderStatus.ACCEPTED) {
+        order.status = OrderStatus.ACCEPTED;
+        order.accept_date = new Date();
+
+        // REDUCE STOCK when accepted
+        console.log(`[OrderService] Decreasing stock for order ID ${orderId}`);
+        const orderDescriptions = await queryRunner.manager.find(OrderDescription, {
+          where: { order_id: orderId },
+          relations: ['product'],
+        });
+
+        for (const item of orderDescriptions) {
+          if (item.product) {
+            console.log(`[OrderService] Product ${item.product.title} (ID: ${item.product_id}) old stock: ${item.product.quantity}, requested: ${item.quantity}`);
+            const newQuantity = item.product.quantity - item.quantity;
+            if (newQuantity < 0) {
+              throw new BadRequestException(`Insufficient stock for product ${item.product.title}`);
+            }
+            await queryRunner.manager.update(Product, item.product_id, {
+              quantity: newQuantity
+            });
+            console.log(`[OrderService] Product ${item.product.title} updated to new stock: ${newQuantity}`);
+          }
+        }
+      } else if (dto.status === OrderStatus.REJECTED) {
+        order.status = OrderStatus.REJECTED;
+        order.accept_date = new Date();
+      } else {
+        throw new BadRequestException('Invalid status for approval/rejection');
+      }
+
+      await queryRunner.manager.save(Order, order);
+      await queryRunner.commitTransaction();
+
+      return { message: `Order ${orderId} has been ${order.status}` };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
     }
-    if (dto.status === OrderStatus.ACCEPTED) {
-      order.status = OrderStatus.ACCEPTED;
-      order.accept_date = new Date();
-    } else if (dto.status === OrderStatus.REJECTED) {
-      order.status = OrderStatus.REJECTED;
-      order.accept_date = new Date();
-      // Optionally save rejection_reason if you add this field to the entity
-    } else {
-      throw new BadRequestException('Invalid status for approval/rejection');
-    }
-    await this.orderRepository.save(order);
-    return { message: `Order ${orderId} has been ${order.status}` };
   }
 
   async updateOrderStatus(orderId: number, dto: UpdateOrderStatusDto) {
