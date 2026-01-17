@@ -19,6 +19,7 @@ interface CartItem {
   current_price: number;
   quantity: number;
   weight: number;
+  dimensions?: string; // Optional since it might not always be present
 }
 
 interface DeliveryInfo {
@@ -85,55 +86,44 @@ export const Checkout = ({ cartItems, orderId, onBack, onOrderComplete }: Checko
     fetchProvinces();
   }, []);
 
-  // Calculate delivery fees
-  const calculateDeliveryFees = () => {
-    const isHanoiOrHCM = deliveryInfo.province === 'thanh_pho_ha_noi' ||
-      deliveryInfo.province === 'thanh_pho_ho_chi_minh';
+  // Fetch delivery fees from API
+  const fetchDeliveryFees = async () => {
+    if (!deliveryInfo.province || cartItems.length === 0) return;
 
-    // Calculate total weight of order
-    const totalWeight = cartItems.reduce((sum, item) => sum + (item.weight * item.quantity), 0);
+    try {
+      const subtotal = cartItems.reduce((sum, item) => sum + (item.current_price * item.quantity), 0);
+      
+      const response = await apiService.calculateDeliveryFee({
+        items: cartItems.map(item => ({
+          product: {
+            weight: item.weight,
+            dimensions: item.dimensions || '0x0x0',
+            value: item.current_price,
+          },
+          quantity: item.quantity,
+        })),
+        province: deliveryInfo.province,
+        subtotal,
+      });
 
-    let baseFee = 0;
-    let additionalFee = 0;
-
-    if (isHanoiOrHCM) {
-      // Hanoi/HCMC: 22,000 VND for first 3kg
-      baseFee = 22000;
-      if (totalWeight > 3) {
-        // 2,500 VND per additional 0.5kg
-        additionalFee = Math.ceil((totalWeight - 3) / 0.5) * 2500;
-      }
-    } else {
-      // Other areas: 30,000 VND for first 0.5kg
-      baseFee = 30000;
-      if (totalWeight > 0.5) {
-        // 2,500 VND per additional 0.5kg
-        additionalFee = Math.ceil((totalWeight - 0.5) / 0.5) * 2500;
-      }
+      setDeliveryFees({
+        fee: response.finalFee,
+        originalFee: response.baseFee + response.additionalFee,
+        discount: response.discount,
+      });
+    } catch (error) {
+      console.error('Failed to calculate delivery fee:', error);
+      // Fallback to zero fees on error
+      setDeliveryFees({
+        fee: 0,
+        originalFee: 0,
+        discount: 0,
+      });
     }
-
-    const originalFee = baseFee + additionalFee;
-    let discount = 0;
-    let finalFee = originalFee;
-
-    // Free shipping for orders > 100,000 VND (max discount 25,000 VND)
-    const itemsTotal = cartItems.reduce((sum, item) => sum + (item.current_price * item.quantity), 0);
-    if (itemsTotal > 100000) {
-      discount = Math.min(25000, originalFee);
-      finalFee = Math.max(0, originalFee - 25000);
-    }
-
-    setDeliveryFees({
-      fee: finalFee,
-      originalFee,
-      discount
-    });
   };
 
   useEffect(() => {
-    if (deliveryInfo.province) {
-      calculateDeliveryFees();
-    }
+    fetchDeliveryFees();
   }, [deliveryInfo.province, cartItems]);
 
   const validateDeliveryInfo = () => {
