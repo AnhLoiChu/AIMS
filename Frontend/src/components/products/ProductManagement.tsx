@@ -65,8 +65,8 @@ export const ProductManagement = () => {
         type: productData.category,
         barcode: `BAR${Date.now()}`,
         description: productData.description || '',
-        weight: 1.0,
-        dimensions: '10x10x10',
+        weight: productData.weight || 1.0,
+        dimensions: productData.dimensions || '10x10x10',
         warehouse_entrydate: new Date().toISOString(),
         manager_id: 1, // TODO: Get from auth context
         subtypeFields: buildSubtypeFields(productData)
@@ -92,8 +92,8 @@ export const ProductManagement = () => {
         category: productData.category,
         type: productData.category,
         description: productData.description || '',
-        weight: 1.0,
-        dimensions: '10x10x10',
+        weight: productData.weight || 1.0,
+        dimensions: productData.dimensions || '10x10x10',
         subtypeFields: buildSubtypeFields(productData)
       };
       
