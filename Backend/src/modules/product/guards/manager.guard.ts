@@ -40,37 +40,16 @@ export class ManagerProductOwnershipGuard implements CanActivate {
     }
 
     const userId = payload.user_id;
+    const userRoles = payload.roles || [];
 
-    const paramId = request.params?.id;
-    const bodyProductIds: number[] = Array.isArray(
-      (request.body as { productIds?: unknown }).productIds,
-    )
-      ? ((request.body as { productIds?: unknown }).productIds as number[])
-      : [];
-
-    // Case 1: Edit - single ID in route params
-    if (paramId) {
-      const productId = parseInt(paramId, 10);
-      const product = await this.productService.findOne(productId);
-      if (!product || product.manager_id !== userId) {
-        throw new ForbiddenException(
-          'You do not have permission to modify this product',
-        );
-      }
+    // Allow if user is admin or manager (no ownership check)
+    if (userRoles.includes('admin') || userRoles.includes('manager')) {
+      return true;
     }
 
-    // Case 2: Delete - array of productIds in body
-    if (bodyProductIds.length) {
-      const products = await this.productService.findByIds(bodyProductIds);
-      const unauthorized = products.find((p) => p.manager_id !== userId);
-      if (unauthorized) {
-        throw new ForbiddenException(
-          `You do not have permission to delete one or more of the selected products`,
-        );
-      }
-    }
-
-    return true;
+    throw new ForbiddenException(
+      'You do not have permission to perform this action',
+    );
   }
 
   private extractTokenFromHeader(request: Request): string | undefined {
