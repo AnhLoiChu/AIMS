@@ -35,16 +35,6 @@ export class PaymentTransaction {
   @JoinColumn({ name: 'order_id', referencedColumnName: 'order_id' })
   order: Order;
 
-  // Additional VNPAY specific fields (not in original schema but needed for tracking)
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  vnp_txn_ref: string;
-
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  vnp_transaction_no: string;
-
-  @Column({ type: 'varchar', length: 10, nullable: true })
-  vnp_response_code: string;
-
   @Column({ type: 'text', nullable: true })
   raw_response: string;
 }

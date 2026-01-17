@@ -18,12 +18,7 @@ export class PaymentGatewayFactory {
       case 'PAYPAL':
         return this.paypalService;
       default:
-        // Default to VietQR if not specified or unknown for now (as requested by user "Default thanh toán bằng QR")
-        // However, usually we should throw. But let's support 'VIETQR' explicitly.
-        // If legacy 'VNPAY' comes in, we can map it or throw.
-        if (method === 'VNPAY') {
-          throw new Error('VNPAY is no longer supported. Please use VIETQR.');
-        }
+        // Default to VietQR if not specified or unknown
         return this.vietqrService;
     }
   }

@@ -82,12 +82,6 @@ export class PaymentTransactionService {
     transaction.status = status;
     if (responseData) {
       transaction.raw_response = JSON.stringify(responseData);
-
-      // Legacy mapping for VNPAY if fields exist
-      if (responseData.vnp_TxnRef) transaction.vnp_txn_ref = responseData.vnp_TxnRef;
-      if (responseData.vnp_TransactionNo) transaction.vnp_transaction_no = responseData.vnp_TransactionNo;
-      if (responseData.vnp_ResponseCode) transaction.vnp_response_code = responseData.vnp_ResponseCode;
-      if (responseData.vnp_BankCode) transaction.bank_name = responseData.vnp_BankCode;
     }
 
     if (status === 'SUCCESS') {
