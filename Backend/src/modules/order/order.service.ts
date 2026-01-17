@@ -19,6 +19,7 @@ import { SchedulerRegistry } from '@nestjs/schedule';
 import { OrderDescriptionService } from '../order-description/order-description.service';
 import { DeliveryInfoService } from '../delivery-info/delivery-info.service';
 import { CreateDeliveryInfoDto } from '../delivery-info/dto/create-delivery-info.dto';
+import { FeeCalculationService } from '../fee-calculation/fee-calculation.service';
 
 @Injectable()
 export class OrderService extends TypeOrmCrudService<Order> {
@@ -38,6 +39,7 @@ export class OrderService extends TypeOrmCrudService<Order> {
     private readonly schedulerRegistry: SchedulerRegistry,
     private readonly orderDescriptionService: OrderDescriptionService,
     private readonly deliveryInfoService: DeliveryInfoService,
+    private readonly feeCalculationService: FeeCalculationService,
   ) {
     super(orderRepository);
   }
@@ -175,10 +177,6 @@ export class OrderService extends TypeOrmCrudService<Order> {
 
   // calculate delivery fee for normal items
   async calculateNormalDeliveryFee(orderId: number) {
-    let normalSubtotal = 0;
-    let maxWeight = 0;
-    let normalDeliveryFee = 0;
-
     const items = await this.orderDescriptionRepository.find({
       where: {
         order_id: orderId,
@@ -192,21 +190,20 @@ export class OrderService extends TypeOrmCrudService<Order> {
 
     if (items.length === 0) {
       return {
-        normalSubtotal,
-        normalDeliveryFee,
+        normalSubtotal: 0,
+        normalDeliveryFee: 0,
       };
     }
 
-    for (const item of items) {
-      normalSubtotal += item.product.value * item.quantity;
-      if (item.product.weight * item.quantity > maxWeight) {
-        maxWeight = item.product.weight * item.quantity;
-      }
-    }
+    const normalSubtotal = items.reduce(
+      (sum, item) => sum + item.product.value * item.quantity,
+      0,
+    );
 
     const deliveryInfo = await this.deliveryInfoRepository.findOne({
       where: { order_id: orderId },
     });
+
     if (!deliveryInfo) {
       throw new NotFoundException({
         code: 'DELIVERY_INFO_NOT_FOUND',
@@ -214,24 +211,23 @@ export class OrderService extends TypeOrmCrudService<Order> {
       });
     }
 
-    if (['HN', 'HCM'].includes(deliveryInfo.province)) {
-      normalDeliveryFee = 22000;
-      if (maxWeight > 3) {
-        normalDeliveryFee += ((maxWeight - 3) / 0.5) * 2500;
-      }
-    } else {
-      normalDeliveryFee = 30000;
-      if (maxWeight > 0.5) {
-        normalDeliveryFee += ((maxWeight - 0.5) / 0.5) * 2500;
-      }
-    }
+    // Sử dụng FeeCalculationService với Strategy Pattern
+    const result = this.feeCalculationService.calculateFee({
+      items: items.map((item) => ({
+        product: {
+          weight: item.product.weight,
+          dimensions: item.product.dimensions,
+          value: item.product.value,
+        },
+        quantity: item.quantity,
+      })),
+      province: deliveryInfo.province,
+      subtotal: normalSubtotal,
+    });
 
-    if (normalSubtotal > 100000) {
-      normalDeliveryFee -= 25000;
-    }
     return {
       normalSubtotal,
-      normalDeliveryFee,
+      normalDeliveryFee: result.finalFee,
     };
   }
 
