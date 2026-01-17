@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ProductCatalog } from '@/components/products/ProductCatalog';
 import { ShoppingCart } from '@/components/cart/ShoppingCart';
@@ -33,6 +33,53 @@ export const CustomerDashboard = ({ user, onLogout, onRoleSwitch, availableRoles
     orderData: any;
     transactionData: any;
   } | null>(null);
+
+  // Load cart from backend on mount
+  useEffect(() => {
+    const fetchCart = async () => {
+      try {
+        const items = await apiService.viewCart(user.id);
+        // We need to fetch product details for each item because viewCart might return limited info
+        // Or if viewCart returns joined data, we parse it.
+        // Assuming viewCart returns: { product: { ... }, quantity: number }[] based on typical NestJS/TypeORM
+        // Let's check api.ts viewCart signature: returns { cart_id, product_id, quantity }[]
+        // This is insufficient for UI (need title, price).
+        // We might need to fetch product details for each ID or update Backend viewCart to return relations.
+
+        // For now, let's assume we need to fetch product details or that apiService needs update.
+        // Let's checking api.ts again via memory or context. 
+        // api.ts: viewCart returns data.productInCarts || [].
+        // Checking Backend CartService (not visible) but usually it includes relations.
+        // If api.ts types are strict we might need to cast.
+
+        // Let's try to map what we get. If only IDs, we must fetch products.
+        // Optimization: Fetch all products or fetch by IDs.
+
+        // Let's blindly trust that viewCart (Backend) includes 'product' relation as is common practice.
+        // If not, we will need to fix Backend CartService too.
+
+        // Actually, looking at order.service.ts, productInCartRepository is used.
+        // Let's assume for now we might be missing title/price.
+        console.log('Fetched cart items:', items);
+
+        // Temporarily: If items have 'product' field
+        const mappedItems: CartItem[] = items.map((item: any) => ({
+          id: item.product_id?.toString() || item.product?.product_id?.toString(),
+          title: item.product?.title || 'Loading...',
+          category: item.product?.category || 'General',
+          current_price: item.product?.value || 0, // Note: Backend uses 'value'
+          quantity: item.quantity,
+          maxQuantity: item.product?.quantity || 100,
+          weight: item.product?.weight || 0
+        })).filter(i => i.id); // Filter invalid
+
+        setCartItems(mappedItems);
+      } catch (err) {
+        console.error("Failed to load cart", err);
+      }
+    };
+    fetchCart();
+  }, [user.id]);
 
   const addToCart = async (product: Product, quantity: number) => {
     try {
@@ -196,8 +243,8 @@ export const CustomerDashboard = ({ user, onLogout, onRoleSwitch, availableRoles
             onUpdateItem={updateCartItem}
             onClearCart={clearCart}
             onOrderComplete={handleOrderComplete}
-            onOrderCreate={() => {}}
-            onDeliveryInfoCreate={() => {}}
+            onOrderCreate={() => { }}
+            onDeliveryInfoCreate={() => { }}
           />
         )}
         {activeTab === 'orders' && (

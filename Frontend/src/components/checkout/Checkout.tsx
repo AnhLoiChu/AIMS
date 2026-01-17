@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Truck } from 'lucide-react';
+import { ArrowLeft, Truck, QrCode, CreditCard, CheckCircle, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { apiService } from '@/services/api';
 import { formatVNDShort } from '@/utils/format';
 
@@ -49,7 +50,12 @@ export const Checkout = ({ cartItems, orderId, onBack, onOrderComplete }: Checko
     originalFee: 0,
     discount: 0
   });
+  const [paymentMethod, setPaymentMethod] = useState<'VIETQR' | 'PAYPAL'>('VIETQR');
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+  const [isPolling, setIsPolling] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<'PENDING' | 'SUCCESS' | 'FAILED'>('PENDING');
   const [errors, setErrors] = useState<string[]>([]);
+  const [isExternalPayment, setIsExternalPayment] = useState(false);
 
   // Province/City selection
   interface Province {
@@ -162,17 +168,84 @@ export const Checkout = ({ cartItems, orderId, onBack, onOrderComplete }: Checko
     });
   };
 
-  const handleCompleteOrder = () => {
-    const redirectUrl = apiService.createPaymentTransaction({
-      order_id: orderId,
-      orderDescription: "Payment for order " + orderId,
-      orderType: "billpayment",
-      bankCode: ""
-    });
+  // Polling for payment status
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
 
-    redirectUrl.then((url) => {
-      window.location.href = url.paymentUrl;
-    });
+    if ((qrCodeUrl || isExternalPayment) && paymentStatus === 'PENDING') {
+      const checkStatus = async () => {
+        try {
+          const res = await apiService.checkPaymentStatus(orderId);
+          console.log("Checking payment status for order", orderId, "Status:", res.data?.status);
+          if (res.success && res.data.status === 'SUCCESS') {
+            setPaymentStatus('SUCCESS');
+            setIsPolling(false);
+            clearInterval(interval);
+
+            // Empty cart after successful payment
+            try {
+              // We need cartId or userId. Since checkout props doesn't have it directly, 
+              // we might need to rely on backend doing it or accessible via user context.
+              // Assuming apiService.getUser() works.
+              const user = apiService.getUser();
+              if (user && user.id) {
+                await apiService.emptyCart(user.id);
+              }
+            } catch (err) {
+              console.error("Failed to empty cart", err);
+            }
+
+            // Wait a bit to show success message then complete
+            setTimeout(() => {
+              onOrderComplete({
+                orderId,
+                // We can fetch more details if needed
+                status: 'SUCCESS'
+              });
+            }, 2000);
+          }
+        } catch (error) {
+          console.error("Error checking payment status", error);
+        }
+      };
+
+      setIsPolling(true);
+      interval = setInterval(checkStatus, 3000); // Check every 3 seconds
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [qrCodeUrl, isExternalPayment, paymentStatus, orderId, onOrderComplete]);
+
+
+  const handleCompleteOrder = async () => {
+    try {
+      const res = await apiService.createPaymentTransaction({
+        order_id: orderId,
+        orderDescription: "Payment for order " + orderId,
+        orderType: "billpayment",
+        bankCode: "", // Optional/Default
+        method: paymentMethod, // Pass selected payment method
+      });
+
+      if (res.type === 'REDIRECT' && res.paymentUrl) {
+        // Open payment in new window/tab
+        window.open(res.paymentUrl, '_blank', 'width=800,height=800,scrollbars=yes,resizable=yes');
+        setIsExternalPayment(true);
+        setIsPolling(true);
+        setPaymentStatus('PENDING');
+      } else if (res.type === 'QR_IMAGE' && res.paymentUrl) {
+        setQrCodeUrl(res.paymentUrl);
+        setIsPolling(true); // Ensure polling is on
+      } else if (res.paymentUrl) {
+        // Fallback catch-all
+        window.location.href = res.paymentUrl;
+      }
+    } catch (error) {
+      console.error("Payment creation failed", error);
+      setErrors(["Failed to initiate payment"]);
+    }
   };
 
   if (step === 'payment') {
@@ -239,20 +312,87 @@ export const Checkout = ({ cartItems, orderId, onBack, onOrderComplete }: Checko
               <CardTitle>Payment Method</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div
+                  className={`border rounded-lg p-4 cursor-pointer flex flex-col items-center justify-center space-y-2 hover:bg-gray-50 ${paymentMethod === 'VIETQR' ? 'border-green-600 bg-green-50' : ''}`}
+                  onClick={() => setPaymentMethod('VIETQR')}
+                >
+                  <QrCode className="h-8 w-8 text-green-600" />
+                  <span className="font-semibold">VietQR</span>
+                </div>
+                {/* PayPal Payment Option */}
+                <div
+                  className={`border rounded-lg p-4 cursor-pointer flex flex-col items-center justify-center space-y-2 hover:bg-gray-50 ${paymentMethod === 'PAYPAL' ? 'border-blue-600 bg-blue-50' : ''}`}
+                  onClick={() => setPaymentMethod('PAYPAL')}
+                >
+                  <CreditCard className="h-8 w-8 text-blue-600" />
+                  <span className="font-semibold">PayPal</span>
+                </div>
+              </div>
+
               <Alert>
                 <AlertDescription>
-                  Payment will be processed through VNPay. You will be redirected to complete the transaction.
+                  {paymentMethod === 'VIETQR'
+                    ? "Scan the QR code with your banking app to pay instantly."
+                    : "You will be redirected to complete the transaction."}
                 </AlertDescription>
               </Alert>
+
               <Button
                 onClick={handleCompleteOrder}
                 className="w-full bg-green-600 hover:bg-green-700"
+                disabled={!!qrCodeUrl} // Disable if QR is already generated
               >
-                Complete Order
+                {qrCodeUrl ? 'Scan QR Code below' : 'Proceed to Pay'}
               </Button>
             </CardContent>
           </Card>
         </div>
+
+        {/* QR Code Dialog / Modal */}
+        <Dialog open={!!qrCodeUrl || isExternalPayment} onOpenChange={(open) => {
+          if (!open && paymentStatus !== 'SUCCESS') {
+            setQrCodeUrl(null);
+            setIsExternalPayment(false);
+          }
+        }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-center">{paymentStatus === 'SUCCESS' ? 'Payment Successful!' : 'Scan QR to Pay'}</DialogTitle>
+              <DialogDescription className="text-center">
+                {paymentStatus === 'SUCCESS'
+                  ? 'Your order has been confirmed.'
+                  : `Order #${orderId} - ${formatVNDShort(total)}`}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col items-center justify-center p-6 space-y-4">
+              {paymentStatus === 'SUCCESS' ? (
+                <CheckCircle className="h-24 w-24 text-green-500 animate-bounce" />
+              ) : (
+                <>
+                  {qrCodeUrl && (
+                    <div className="border-4 border-white shadow-lg rounded-lg overflow-hidden">
+                      <img src={qrCodeUrl} alt="VietQR" className="w-64 h-64 object-contain" />
+                    </div>
+                  )}
+                  {isExternalPayment && (
+                    <div className="text-center space-y-2">
+                      <p className="font-semibold text-lg">Payment Window Opened</p>
+                      <p className="text-sm text-gray-500">Please complete the payment in the new window.</p>
+                      <Button variant="outline" size="sm" onClick={() => window.open(qrCodeUrl || '#', '_blank')}>
+                        Re-open Payment Window
+                      </Button>
+                    </div>
+                  )}
+                  <div className="flex items-center space-x-2 text-sm text-gray-500 animate-pulse">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Waiting for payment...</span>
+                  </div>
+                </>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }

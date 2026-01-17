@@ -18,10 +18,8 @@ export default async function seedPaymentTransactions() {
   for (const order of selectedOrders) {
     const payment = paymentRepo.create({
       method: faker.helpers.arrayElement([
-        'Credit Card',
-        'Bank Transfer',
+        'VIETQR',
         'PayPal',
-        'VNPAY',
       ]),
       bank_name: faker.company.name(),
       time: faker.date.recent(),
@@ -33,15 +31,6 @@ export default async function seedPaymentTransactions() {
         'CANCELLED',
       ]),
       order_id: order.order_id,
-      vnp_txn_ref: faker.string.alphanumeric(10),
-      vnp_transaction_no: faker.string.alphanumeric(10),
-      vnp_response_code: faker.helpers.arrayElement([
-        '00',
-        '01',
-        '02',
-        '03',
-        '04',
-      ]),
       raw_response: JSON.stringify({
         transaction_id: faker.string.alphanumeric(10),
         amount: faker.number.int({ min: 10000, max: 1000000 }),

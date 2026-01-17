@@ -54,7 +54,7 @@ describe('PaymentTransactionService', () => {
       orderRepo.findOne.mockResolvedValue(mockOrder);
       paymentTransactionRepo.findOne.mockResolvedValue(null);
       paymentTransactionRepo.create.mockReturnValue({
-        method: 'VNPAY',
+        method: 'VIETQR',
         content: mockPaymentData.orderDescription,
         status: 'PENDING',
         order_id: mockPaymentData.order_id,
@@ -62,7 +62,7 @@ describe('PaymentTransactionService', () => {
       });
       paymentTransactionRepo.save.mockResolvedValue({
         payment_transaction_id: 'uuid-123',
-        method: 'VNPAY',
+        method: 'VIETQR',
         status: 'PENDING',
         order_id: 1,
       });
@@ -72,7 +72,7 @@ describe('PaymentTransactionService', () => {
       expect(result.transaction).toBeDefined();
       expect(result.order).toBeDefined();
       expect(paymentTransactionRepo.create).toHaveBeenCalledWith({
-        method: 'VNPAY',
+        method: 'VIETQR',
         content: mockPaymentData.orderDescription,
         status: 'PENDING',
         order_id: mockPaymentData.order_id,
@@ -177,7 +177,7 @@ describe('PaymentTransactionService', () => {
     const mockTransaction = {
       payment_transaction_id: 'uuid-123',
       status: 'SUCCESS',
-      method: 'VNPAY',
+      method: 'VIETQR',
     };
 
     // TC007: Should return order, deliveryInfo, and transaction details

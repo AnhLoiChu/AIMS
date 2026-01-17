@@ -1,17 +1,25 @@
 import { Injectable } from '@nestjs/common';
-import { VNPayService } from './vnpay.service';
+import { VietQRService } from './vietqr.service';
+import { PayPalService } from './paypal.service';
 import { PaymentGateway } from './payment-gateway.interface';
 
 @Injectable()
 export class PaymentGatewayFactory {
-  constructor(private readonly vnpayService: VNPayService) {}
+  constructor(
+    private readonly vietqrService: VietQRService,
+    private readonly paypalService: PayPalService,
+  ) { }
 
   createGateway(method: string): PaymentGateway {
-    switch (method) {
-      case 'VNPAY':
-        return this.vnpayService;
+    switch (method?.toUpperCase()) {
+      case 'VIETQR':
+      case 'QRCODE':
+        return this.vietqrService;
+      case 'PAYPAL':
+        return this.paypalService;
       default:
-        throw new Error(`Unsupported: ${method}`);
+        // Default to VietQR if not specified or unknown
+        return this.vietqrService;
     }
   }
 }
