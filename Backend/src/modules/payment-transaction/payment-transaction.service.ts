@@ -8,6 +8,8 @@ import { DeliveryInfo } from '../delivery-info/entities/delivery-info.entity';
 import { User } from '../user/entities/user.entity';
 import { OrderStatus } from '../order/dto/order-status.enum';
 
+import { MailService } from '../mail/mail.service';
+
 @Injectable()
 export class PaymentTransactionService {
   constructor(
@@ -20,6 +22,7 @@ export class PaymentTransactionService {
     @InjectRepository(User)
     private userRepository: Repository<User>,
     private dataSource: DataSource,
+    private mailService: MailService,
   ) { }
 
   // ... (keeping createTransaction as it is, or can also be wrapped if needed)
@@ -108,12 +111,30 @@ export class PaymentTransactionService {
       }
 
       await queryRunner.commitTransaction();
+
+      // Send email after successful transaction commit
+      if (status === 'SUCCESS') {
+        this.sendConfirmationEmailAsync(orderId).catch(err => {
+          console.error(`[PaymentTransactionService] Critical: Failed to trigger email sending for order ${orderId}`, err);
+        });
+      }
+
       return transaction;
     } catch (err) {
       await queryRunner.rollbackTransaction();
       throw err;
     } finally {
       await queryRunner.release();
+    }
+  }
+
+  private async sendConfirmationEmailAsync(orderId: number) {
+    try {
+      const { order, deliveryInfo, transaction } = await this.getOrderDetailsForEmail(orderId);
+      await this.mailService.sendOrderConfirmation(order, transaction, deliveryInfo);
+      console.log(`[PaymentTransactionService] Confirmation email sent successfully for order ${orderId}`);
+    } catch (error) {
+      console.error(`[PaymentTransactionService] Failed to send confirmation email for order ${orderId}:`, error.message);
     }
   }
 
