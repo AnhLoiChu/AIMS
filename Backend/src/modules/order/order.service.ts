@@ -185,6 +185,11 @@ export class OrderService extends TypeOrmCrudService<Order> {
       },
       relations: ['product'],
     });
+
+    // Debug log to see what items are included
+    console.log(`Debug Order ${orderId} Items:`);
+    items.forEach(i => console.log(` - Product ${i.product_id}: Val=${i.product.value}, Qty=${i.quantity}`));
+
     if (items.length === 0) {
       return {
         normalSubtotal,
@@ -457,9 +462,9 @@ export class OrderService extends TypeOrmCrudService<Order> {
         averageOrderValue:
           pendingOrders.length > 0
             ? ordersWithDetails.reduce(
-                (sum, order) => sum + order.totalValue,
-                0,
-              ) / pendingOrders.length
+              (sum, order) => sum + order.totalValue,
+              0,
+            ) / pendingOrders.length
             : 0,
       },
     };
