@@ -186,7 +186,7 @@ export class OrderService extends TypeOrmCrudService<Order> {
 
     // Debug log to see what items are included
     console.log(`Debug Order ${orderId} Items:`);
-    items.forEach(i => console.log(` - Product ${i.product_id}: Val=${i.product.value}, Qty=${i.quantity}`));
+    items.forEach(i => console.log(` - Product ${i.product_id}: Price=${i.product.current_price}, Qty=${i.quantity}`));
 
     if (items.length === 0) {
       return {
@@ -196,7 +196,7 @@ export class OrderService extends TypeOrmCrudService<Order> {
     }
 
     const normalSubtotal = items.reduce(
-      (sum, item) => sum + item.product.value * item.quantity,
+      (sum, item) => sum + item.product.current_price * item.quantity,
       0,
     );
 
@@ -217,7 +217,7 @@ export class OrderService extends TypeOrmCrudService<Order> {
         product: {
           weight: item.product.weight,
           dimensions: item.product.dimensions,
-          value: item.product.value,
+          value: item.product.current_price,
         },
         quantity: item.quantity,
       })),
@@ -263,10 +263,10 @@ export class OrderService extends TypeOrmCrudService<Order> {
     }
 
     const items = orderDescriptions.map((desc) => {
-      const subtotal = desc.quantity * desc.product.value;
+      const subtotal = desc.quantity * desc.product.current_price;
       return {
         product_id: desc.product_id,
-        price: desc.product.value,
+        price: desc.product.current_price,
         quantity: desc.quantity,
         subtotal,
       };
@@ -488,7 +488,8 @@ export class OrderService extends TypeOrmCrudService<Order> {
       });
     }
 
-    order.subtotal = subtotal;
+    // Add VAT (10%) to subtotal before saving
+    order.subtotal = subtotal * 1.1;
     order.delivery_fee = deliveryFee;
 
     await this.orderRepository.save(order);
@@ -556,7 +557,7 @@ export class OrderService extends TypeOrmCrudService<Order> {
           items: orderItems.map((item) => ({
             product_name: item.product?.title || 'Unknown Product',
             quantity: item.quantity,
-            price: item.product?.value || 0,
+            price: item.product?.current_price || 0,
           })),
           deliveryInfo,
           paymentTransaction,

@@ -68,7 +68,8 @@ export class DeliveryInfoController implements CrudController<DeliveryInfo> {
       });
     }
 
-    order.subtotal = subtotal;
+    // Add VAT (10%) to subtotal before saving
+    order.subtotal = subtotal * 1.1;
     order.delivery_fee = deliveryFee;
     await this.orderRepository.save(order);
 
