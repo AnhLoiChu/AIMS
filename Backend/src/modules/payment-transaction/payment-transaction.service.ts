@@ -97,11 +97,14 @@ export class PaymentTransactionService {
 
       // If success, update order status
       if (status === 'SUCCESS') {
+        console.log(`[PaymentTransactionService] Payment SUCCESS for order ${orderId}. Updating status to PENDING.`);
         await queryRunner.manager.update(
           Order,
           { order_id: orderId },
           { status: OrderStatus.PENDING },
         );
+      } else {
+        console.log(`[PaymentTransactionService] Payment status updated to ${status} for order ${orderId}.`);
       }
 
       await queryRunner.commitTransaction();

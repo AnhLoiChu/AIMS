@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Order } from './entities/order.entity';
 import { TypeOrmCrudService } from '@dataui/crud-typeorm';
 import { ProductInCart } from '../product-in-cart/entities/product-in-cart.entity';
@@ -28,7 +28,7 @@ export class OrderService extends TypeOrmCrudService<Order> {
     public readonly orderRepository: Repository<Order>,
     @InjectRepository(ProductInCart)
     public readonly productInCartRepository: Repository<ProductInCart>,
-    @InjectRepository(ProductInCart)
+    @InjectRepository(Cart)
     public readonly cartRepository: Repository<Cart>,
     @InjectRepository(OrderDescription)
     public readonly orderDescriptionRepository: Repository<OrderDescription>,
@@ -500,7 +500,70 @@ export class OrderService extends TypeOrmCrudService<Order> {
     };
   }
 
-  // payOrder() {
-  //   // empty cart after pay successfully
-  // }
+  async getOrdersByUserId(userId: number) {
+    console.log(`[OrderService] Fetching orders for userId: ${userId} (type: ${typeof userId})`);
+
+    // Find all carts belonging to this user
+    const carts = await this.cartRepository.find({
+      where: { customer_id: userId }
+    });
+
+    const cartIds = carts.map(c => c.cart_id);
+
+    // BACKWARD COMPATIBILITY / FE BUG FIX:
+    // The Frontend often uses user.id as cartId (e.g., ShoppingCart.tsx:47)
+    // If the actual cart assigned to the user has a different ID, the order 
+    // history based only on assigned carts will miss orders created with userId.
+    if (!cartIds.includes(userId)) {
+      cartIds.push(userId);
+    }
+
+    console.log(`[OrderService] Found final cart IDs to search for user ${userId}:`, cartIds);
+
+    if (cartIds.length === 0) {
+      return [];
+    }
+
+    console.log(`[OrderService] Querying orders for cartIds:`, cartIds);
+    const orders = await this.orderRepository.find({
+      where: {
+        cart_id: In(cartIds)
+      },
+      order: {
+        order_id: 'DESC',
+      },
+    });
+
+    console.log(`[OrderService] Found ${orders.length} orders:`, orders.map(o => o.order_id));
+
+    const ordersWithDetails = await Promise.all(
+      orders.map(async (order) => {
+        const orderItems = await this.orderDescriptionRepository.find({
+          where: { order_id: order.order_id },
+          relations: ['product'],
+        });
+
+        const deliveryInfo = await this.deliveryInfoRepository.findOne({
+          where: { order_id: order.order_id },
+        });
+
+        const paymentTransaction = await this.paymentTransactionRepository.findOne({
+          where: { order_id: order.order_id },
+        });
+
+        return {
+          ...order,
+          items: orderItems.map((item) => ({
+            product_name: item.product?.title || 'Unknown Product',
+            quantity: item.quantity,
+            price: item.product?.value || 0,
+          })),
+          deliveryInfo,
+          paymentTransaction,
+        };
+      }),
+    );
+
+    return ordersWithDetails;
+  }
 }
