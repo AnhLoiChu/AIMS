@@ -110,12 +110,38 @@ export const ProductForm = ({ product, onSave, onCancel }: ProductFormProps) => 
               />
             </div>
             <div>
-              <Label htmlFor="publication_date">Publication Date</Label>
+              <Label htmlFor="publication_date">Publication Date *</Label>
               <Input
                 id="publication_date"
                 type="date"
                 value={formData.publication_date}
                 onChange={(e) => updateField('publication_date', e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="number_of_pages">Number of Pages</Label>
+              <Input
+                id="number_of_pages"
+                type="number"
+                value={formData.number_of_pages}
+                onChange={(e) => updateField('number_of_pages', e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="language">Language</Label>
+              <Input
+                id="language"
+                value={formData.language}
+                onChange={(e) => updateField('language', e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="genre">Genre</Label>
+              <Input
+                id="genre"
+                value={formData.genre}
+                onChange={(e) => updateField('genre', e.target.value)}
               />
             </div>
           </>
@@ -147,6 +173,24 @@ export const ProductForm = ({ product, onSave, onCancel }: ProductFormProps) => 
                 value={formData.tracklist}
                 onChange={(e) => updateField('tracklist', e.target.value)}
                 placeholder="Enter track names, one per line"
+              />
+            </div>
+            <div>
+              <Label htmlFor="genre">Genre</Label>
+              <Input
+                id="genre"
+                value={formData.genre}
+                onChange={(e) => updateField('genre', e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="release_date">Release Date *</Label>
+              <Input
+                id="release_date"
+                type="date"
+                value={formData.release_date}
+                onChange={(e) => updateField('release_date', e.target.value)}
+                required
               />
             </div>
           </>
@@ -218,6 +262,16 @@ export const ProductForm = ({ product, onSave, onCancel }: ProductFormProps) => 
                 placeholder="Enter sections (comma separated)"
               />
             </div>
+            <div>
+              <Label htmlFor="publication_date">Publication Date *</Label>
+              <Input
+                id="publication_date"
+                type="date"
+                value={formData.publication_date}
+                onChange={(e) => updateField('publication_date', e.target.value)}
+                required
+              />
+            </div>
           </>
         );
       case 'dvd':
@@ -259,6 +313,40 @@ export const ProductForm = ({ product, onSave, onCancel }: ProductFormProps) => 
                 id="studio"
                 value={formData.studio}
                 onChange={(e) => updateField('studio', e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="subtitles">Subtitles</Label>
+              <Input
+                id="subtitles"
+                value={formData.subtitles}
+                onChange={(e) => updateField('subtitles', e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="language">Language</Label>
+              <Input
+                id="language"
+                value={formData.language}
+                onChange={(e) => updateField('language', e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="release_date">Release Date *</Label>
+              <Input
+                id="release_date"
+                type="date"
+                value={formData.release_date}
+                onChange={(e) => updateField('release_date', e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="genre">Genre</Label>
+              <Input
+                id="genre"
+                value={formData.genre}
+                onChange={(e) => updateField('genre', e.target.value)}
               />
             </div>
           </>
