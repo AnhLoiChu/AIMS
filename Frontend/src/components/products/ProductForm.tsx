@@ -20,6 +20,8 @@ export const ProductForm = ({ product, onSave, onCancel }: ProductFormProps) => 
     value: product?.value || '',
     current_price: product?.current_price || '',
     quantity: product?.quantity || '',
+    weight: product?.weight || '1.0',
+    dimensions: product?.dimensions || '10x10x10',
     // Book specific
     author: product?.author || '',
     cover_type: product?.cover_type || '',
@@ -63,7 +65,9 @@ export const ProductForm = ({ product, onSave, onCancel }: ProductFormProps) => 
       ...formData,
       value: parseFloat(formData.value),
       current_price: parseFloat(formData.current_price),
-      quantity: parseInt(formData.quantity)
+      quantity: parseInt(formData.quantity),
+      weight: parseFloat(formData.weight),
+      dimensions: formData.dimensions
     });
   };
 
@@ -333,6 +337,27 @@ export const ProductForm = ({ product, onSave, onCancel }: ProductFormProps) => 
                 id="genre"
                 value={formData.genre}
                 onChange={(e) => updateField('genre', e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="weight">Weight (kg) *</Label>
+              <Input
+                id="weight"
+                type="number"
+                step="0.01"
+                value={formData.weight}
+                onChange={(e) => updateField('weight', e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="dimensions">Dimensions (LxWxH cm) *</Label>
+              <Input
+                id="dimensions"
+                placeholder="e.g., 20x15x5"
+                value={formData.dimensions}
+                onChange={(e) => updateField('dimensions', e.target.value)}
+                required
               />
             </div>
           </div>
