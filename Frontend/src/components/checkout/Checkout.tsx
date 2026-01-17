@@ -5,13 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Clock, Truck } from 'lucide-react';
-import { apiService } from '@/services/api'; // Adjust the import path as necessary
+import { ArrowLeft, Truck } from 'lucide-react';
+import { apiService } from '@/services/api';
+import { formatVNDShort } from '@/utils/format';
 
 interface CartItem {
   id: string;
@@ -20,7 +18,6 @@ interface CartItem {
   current_price: number;
   quantity: number;
   weight: number;
-  rush_eligible?: boolean;
 }
 
 interface DeliveryInfo {
@@ -29,11 +26,6 @@ interface DeliveryInfo {
   phone: string;
   province: string;
   address: string;
-}
-
-interface RushOrderInfo {
-  delivery_time: string;
-  delivery_instructions: string;
 }
 
 interface CheckoutProps {
@@ -52,89 +44,91 @@ export const Checkout = ({ cartItems, orderId, onBack, onOrderComplete }: Checko
     province: '',
     address: ''
   });
-  const [enableRushOrder, setEnableRushOrder] = useState(false);
-  const [rushOrderInfo, setRushOrderInfo] = useState<RushOrderInfo>({
-    delivery_time: '',
-    delivery_instructions: ''
-  });
-  const [selectedRushItems, setSelectedRushItems] = useState<string[]>([]);
   const [deliveryFees, setDeliveryFees] = useState({
-    regular: 0,
-    rush: 0
+    fee: 0,
+    originalFee: 0,
+    discount: 0
   });
   const [errors, setErrors] = useState<string[]>([]);
 
-  // Check if current address supports rush delivery
-  const isRushDeliveryAvailable = () => {
-    return true; // For simplicity, assume rush delivery is available for all addresses
-  };
+  // Province/City selection
+  interface Province {
+    code: number;
+    name: string;
+    codename: string;
+  }
+  const [provinces, setProvinces] = useState<Province[]>([]);
+  const [loadingProvinces, setLoadingProvinces] = useState(true);
 
-  // Get rush eligible items
-  const rushEligibleItems = cartItems.filter(item => item.rush_eligible);
+  // Fetch provinces on component mount
+  useEffect(() => {
+    const fetchProvinces = async () => {
+      try {
+        setLoadingProvinces(true);
+        const response = await fetch('https://provinces.open-api.vn/api/p/');
+        if (response.ok) {
+          const data = await response.json();
+          setProvinces(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch provinces:', error);
+      } finally {
+        setLoadingProvinces(false);
+      }
+    };
+    fetchProvinces();
+  }, []);
 
   // Calculate delivery fees
   const calculateDeliveryFees = () => {
-    const isHanoiOrHCM = deliveryInfo.province.toLowerCase().includes('HN') ||
-      deliveryInfo.province.toLowerCase().includes('hồ chí minh');
+    const isHanoiOrHCM = deliveryInfo.province === 'thanh_pho_ha_noi' ||
+      deliveryInfo.province === 'thanh_pho_ho_chi_minh';
 
-    let regularItems = cartItems;
-    let rushItems: CartItem[] = [];
+    // Calculate total weight of order
+    const totalWeight = cartItems.reduce((sum, item) => sum + (item.weight * item.quantity), 0);
 
-    if (enableRushOrder && isRushDeliveryAvailable()) {
-      rushItems = cartItems.filter(item => selectedRushItems.includes(item.id));
-      regularItems = cartItems.filter(item => !selectedRushItems.includes(item.id));
+    let baseFee = 0;
+    let additionalFee = 0;
+
+    if (isHanoiOrHCM) {
+      // Hanoi/HCMC: 22,000 VND for first 3kg
+      baseFee = 22000;
+      if (totalWeight > 3) {
+        // 2,500 VND per additional 0.5kg
+        additionalFee = Math.ceil((totalWeight - 3) / 0.5) * 2500;
+      }
+    } else {
+      // Other areas: 30,000 VND for first 0.5kg
+      baseFee = 30000;
+      if (totalWeight > 0.5) {
+        // 2,500 VND per additional 0.5kg
+        additionalFee = Math.ceil((totalWeight - 0.5) / 0.5) * 2500;
+      }
     }
 
-    const calculateFeeForItems = (items: CartItem[], isRush = false) => {
-      if (items.length === 0) return 0;
+    const originalFee = baseFee + additionalFee;
+    let discount = 0;
+    let finalFee = originalFee;
 
-      const totalWeight = items.reduce((sum, item) => sum + (item.weight * item.quantity), 0);
-      const heaviestWeight = Math.max(...items.map(item => item.weight));
+    // Free shipping for orders > 100,000 VND (max discount 25,000 VND)
+    const itemsTotal = cartItems.reduce((sum, item) => sum + (item.current_price * item.quantity), 0);
+    if (itemsTotal > 100000) {
+      discount = Math.min(25000, originalFee);
+      finalFee = Math.max(0, originalFee - 25000);
+    }
 
-      let baseFee = 0;
-      let additionalFee = 0;
-
-      if (isHanoiOrHCM) {
-        baseFee = 22000; // First 3kg
-        if (heaviestWeight > 3) {
-          additionalFee = Math.ceil((heaviestWeight - 3) / 0.5) * 2500;
-        }
-      } else {
-        baseFee = 30000; // First 0.5kg
-        if (heaviestWeight > 0.5) {
-          additionalFee = Math.ceil((heaviestWeight - 0.5) / 0.5) * 2500;
-        }
-      }
-
-      let totalFee = baseFee + additionalFee;
-
-      // Rush order additional fee
-      if (isRush) {
-        totalFee += items.length * 10000; // 10,000 VND per rush item
-      }
-
-      // Free shipping for orders over 100,000 VND (excluding rush items)
-      if (!isRush) {
-        const itemsTotal = items.reduce((sum, item) => sum + (item.current_price * item.quantity), 0);
-        if (itemsTotal > 100000) {
-          totalFee = Math.max(0, totalFee - 25000);
-        }
-      }
-
-      return totalFee;
-    };
-
-    const regularFee = calculateFeeForItems(regularItems, false);
-    const rushFee = calculateFeeForItems(rushItems, true);
-
-    setDeliveryFees({ regular: regularFee, rush: rushFee });
+    setDeliveryFees({
+      fee: finalFee,
+      originalFee,
+      discount
+    });
   };
 
   useEffect(() => {
     if (deliveryInfo.province) {
       calculateDeliveryFees();
     }
-  }, [deliveryInfo, enableRushOrder, selectedRushItems]);
+  }, [deliveryInfo.province, cartItems]);
 
   const validateDeliveryInfo = () => {
     const newErrors: string[] = [];
@@ -145,64 +139,28 @@ export const Checkout = ({ cartItems, orderId, onBack, onOrderComplete }: Checko
     if (!deliveryInfo.province.trim()) newErrors.push('Province is required');
     if (!deliveryInfo.address.trim()) newErrors.push('Address is required');
 
-    if (enableRushOrder) {
-      if (!rushOrderInfo.delivery_time) {
-        newErrors.push('Rush delivery time is required');
-      }
-      if (!rushOrderInfo.delivery_instructions.trim()) {
-        newErrors.push('Rush delivery instructions are required');
-      }
-    }
-
     setErrors(newErrors);
     return newErrors.length === 0;
   };
 
-  const handleRushItemToggle = (itemId: string) => {
-    setSelectedRushItems(prev =>
-      prev.includes(itemId)
-        ? prev.filter(id => id !== itemId)
-        : [...prev, itemId]
-    );
-  };
-
   const subtotal = cartItems.reduce((sum, item) => sum + (item.current_price * item.quantity), 0);
   const vat = subtotal * 0.1;
-  const total = subtotal + vat + deliveryFees.regular + deliveryFees.rush;
+  const total = subtotal + vat + deliveryFees.fee;
 
   const handleProceedToPayment = () => {
-    let deliveryInfoPromise: Promise<any>;
+    if (!validateDeliveryInfo()) return;
 
-    if (enableRushOrder) {
-      deliveryInfoPromise = apiService.createRushedOrderDeliveryInfo({
-        order_id: orderId,
-        recipient_name: deliveryInfo.recipient_name,
-        email: deliveryInfo.email,
-        phone: deliveryInfo.phone,
-        province: deliveryInfo.province,
-        address: deliveryInfo.address,
-        instruction: rushOrderInfo.delivery_instructions || null,
-        delivery_time: rushOrderInfo.delivery_time ? new Date(rushOrderInfo.delivery_time) : null
-      });
-    } else {
-      deliveryInfoPromise = apiService.createNormalOrderDeliveryInfo({
-        order_id: orderId,
-        recipient_name: deliveryInfo.recipient_name,
-        email: deliveryInfo.email,
-        phone: deliveryInfo.phone,
-        province: deliveryInfo.province,
-        address: deliveryInfo.address
-      });
-    }
-
-    deliveryInfoPromise.then(() => {
-
-
+    apiService.createNormalOrderDeliveryInfo({
+      order_id: orderId,
+      recipient_name: deliveryInfo.recipient_name,
+      email: deliveryInfo.email,
+      phone: deliveryInfo.phone,
+      province: deliveryInfo.province,
+      address: deliveryInfo.address
+    }).then(() => {
       setStep('payment');
     });
-    return;
   };
-
 
   const handleCompleteOrder = () => {
     const redirectUrl = apiService.createPaymentTransaction({
@@ -237,16 +195,8 @@ export const Checkout = ({ cartItems, orderId, onBack, onOrderComplete }: Checko
               <div className="space-y-2">
                 {cartItems.map(item => (
                   <div key={item.id} className="flex justify-between items-center">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm">{item.title} (x{item.quantity})</span>
-                      {selectedRushItems.includes(item.id) && (
-                        <Badge variant="secondary" className="text-xs">
-                          <Clock className="h-3 w-3 mr-1" />
-                          Rush
-                        </Badge>
-                      )}
-                    </div>
-                    <span className="text-sm">${(item.current_price * item.quantity).toFixed(2)}</span>
+                    <span className="text-sm">{item.title} (x{item.quantity})</span>
+                    <span className="text-sm">{formatVNDShort(item.current_price * item.quantity)}</span>
                   </div>
                 ))}
               </div>
@@ -254,28 +204,31 @@ export const Checkout = ({ cartItems, orderId, onBack, onOrderComplete }: Checko
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span>Subtotal (excl. VAT):</span>
-                  <span>${subtotal.toFixed(2)}</span>
+                  <span>{formatVNDShort(subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>VAT (10%):</span>
-                  <span>${vat.toFixed(2)}</span>
+                  <span>{formatVNDShort(vat)}</span>
                 </div>
-                {deliveryFees.regular > 0 && (
+                {deliveryFees.originalFee > 0 && (
                   <div className="flex justify-between">
-                    <span>Regular Delivery:</span>
-                    <span>${(deliveryFees.regular / 1000).toFixed(2)}</span>
-                  </div>
-                )}
-                {deliveryFees.rush > 0 && (
-                  <div className="flex justify-between">
-                    <span>Rush Delivery:</span>
-                    <span>${(deliveryFees.rush / 1000).toFixed(2)}</span>
+                    <span>Delivery:</span>
+                    <div className="text-right">
+                      {deliveryFees.discount > 0 ? (
+                        <>
+                          <span className="line-through text-gray-400 mr-2">{formatVNDShort(deliveryFees.originalFee)}</span>
+                          <span>{formatVNDShort(deliveryFees.fee)}</span>
+                        </>
+                      ) : (
+                        <span>{formatVNDShort(deliveryFees.fee)}</span>
+                      )}
+                    </div>
                   </div>
                 )}
                 <Separator />
                 <div className="flex justify-between font-semibold text-lg">
                   <span>Total:</span>
-                  <span>${total.toFixed(2)}</span>
+                  <span>{formatVNDShort(total)}</span>
                 </div>
               </div>
             </CardContent>
@@ -327,135 +280,70 @@ export const Checkout = ({ cartItems, orderId, onBack, onOrderComplete }: Checko
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Delivery Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="recipient_name">Recipient Name *</Label>
-                  <Input
-                    id="recipient_name"
-                    value={deliveryInfo.recipient_name}
-                    onChange={(e) => setDeliveryInfo(prev => ({ ...prev, recipient_name: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="phone">Phone Number *</Label>
-                  <Input
-                    id="phone"
-                    value={deliveryInfo.phone}
-                    onChange={(e) => setDeliveryInfo(prev => ({ ...prev, phone: e.target.value }))}
-                  />
-                </div>
-              </div>
-
+        <Card>
+          <CardHeader>
+            <CardTitle>Delivery Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="email">Email *</Label>
+                <Label htmlFor="recipient_name">Recipient Name *</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  value={deliveryInfo.email}
-                  onChange={(e) => setDeliveryInfo(prev => ({ ...prev, email: e.target.value }))}
+                  id="recipient_name"
+                  value={deliveryInfo.recipient_name}
+                  onChange={(e) => setDeliveryInfo(prev => ({ ...prev, recipient_name: e.target.value }))}
                 />
               </div>
-
               <div>
-                <Label htmlFor="province">Province/City *</Label>
+                <Label htmlFor="phone">Phone Number *</Label>
                 <Input
-                  id="province"
-                  value={deliveryInfo.province}
-                  onChange={(e) => setDeliveryInfo(prev => ({ ...prev, province: e.target.value }))}
+                  id="phone"
+                  value={deliveryInfo.phone}
+                  onChange={(e) => setDeliveryInfo(prev => ({ ...prev, phone: e.target.value }))}
                 />
               </div>
+            </div>
 
-              <div>
-                <Label htmlFor="address">Delivery Address *</Label>
-                <Textarea
-                  id="address"
-                  value={deliveryInfo.address}
-                  onChange={(e) => setDeliveryInfo(prev => ({ ...prev, address: e.target.value }))}
-                />
-              </div>
+            <div>
+              <Label htmlFor="email">Email *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={deliveryInfo.email}
+                onChange={(e) => setDeliveryInfo(prev => ({ ...prev, email: e.target.value }))}
+              />
+            </div>
 
-              {/* Rush Order Checkbox in Delivery Information */}
-              <div className="space-y-4 border-t pt-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="rush-order"
-                    checked={enableRushOrder}
-                    onCheckedChange={(checked) => setEnableRushOrder(checked === true)}
-                  />
-                  <Label htmlFor="rush-order" className="flex items-center space-x-2">
-                    <Clock className="h-4 w-4" />
-                    <span>Rush Order Delivery (2 Hours - Additional 10,000 VND per item)</span>
-                  </Label>
-                </div>
+            <div>
+              <Label htmlFor="province">Province/City *</Label>
+              <select
+                id="province"
+                value={deliveryInfo.province}
+                onChange={(e) => setDeliveryInfo(prev => ({ ...prev, province: e.target.value }))}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={loadingProvinces}
+              >
+                <option value="">
+                  {loadingProvinces ? 'Loading...' : '-- Select Province/City --'}
+                </option>
+                {provinces.map((province) => (
+                  <option key={province.code} value={province.codename}>
+                    {province.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-                {enableRushOrder && (
-                  <div className="space-y-4 ml-6">
-                    {!isRushDeliveryAvailable() && (
-                      <Alert>
-                        <AlertDescription>
-                          Rush delivery is only available for addresses within Hanoi.
-                        </AlertDescription>
-                      </Alert>
-                    )}
-
-                    {isRushDeliveryAvailable() && (
-                      <>
-                        <div>
-                          <Label htmlFor="delivery_time">Delivery Time *</Label>
-                          <Input
-                            id="delivery_time"
-                            type="datetime-local"
-                            value={rushOrderInfo.delivery_time}
-                            onChange={(e) => setRushOrderInfo(prev => ({ ...prev, delivery_time: e.target.value }))}
-                          />
-                        </div>
-
-                        <div>
-                          <Label htmlFor="delivery_instructions">Delivery Instructions *</Label>
-                          <Textarea
-                            id="delivery_instructions"
-                            value={rushOrderInfo.delivery_instructions}
-                            onChange={(e) => setRushOrderInfo(prev => ({ ...prev, delivery_instructions: e.target.value }))}
-                            placeholder="Special instructions for rush delivery..."
-                          />
-                        </div>
-
-                        {rushEligibleItems.length > 0 && (
-                          <div>
-                            <Label className="text-sm font-medium">Select items for rush delivery:</Label>
-                            <div className="mt-2 space-y-2">
-                              {rushEligibleItems.map(item => (
-                                <div key={item.id} className="flex items-center space-x-2">
-                                  <Checkbox
-                                    checked={selectedRushItems.includes(item.id)}
-                                    onCheckedChange={(checked) => {
-                                      if (checked === true) {
-                                        handleRushItemToggle(item.id);
-                                      } else {
-                                        setSelectedRushItems(prev => prev.filter(id => id !== item.id));
-                                      }
-                                    }}
-                                  />
-                                  <span className="text-sm">{item.title} (${item.current_price})</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            <div>
+              <Label htmlFor="address">Delivery Address *</Label>
+              <Textarea
+                id="address"
+                value={deliveryInfo.address}
+                onChange={(e) => setDeliveryInfo(prev => ({ ...prev, address: e.target.value }))}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Order Summary */}
         <Card className="h-fit">
@@ -466,16 +354,8 @@ export const Checkout = ({ cartItems, orderId, onBack, onOrderComplete }: Checko
             <div className="space-y-2">
               {cartItems.map(item => (
                 <div key={item.id} className="flex justify-between items-center">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm">{item.title} (x{item.quantity})</span>
-                    {selectedRushItems.includes(item.id) && (
-                      <Badge variant="secondary" className="text-xs">
-                        <Clock className="h-3 w-3 mr-1" />
-                        Rush
-                      </Badge>
-                    )}
-                  </div>
-                  <span className="text-sm">${(item.current_price * item.quantity).toFixed(2)}</span>
+                  <span className="text-sm">{item.title} (x{item.quantity})</span>
+                  <span className="text-sm">{formatVNDShort(item.current_price * item.quantity)}</span>
                 </div>
               ))}
             </div>
@@ -485,28 +365,31 @@ export const Checkout = ({ cartItems, orderId, onBack, onOrderComplete }: Checko
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span>Subtotal (excl. VAT):</span>
-                <span>${subtotal.toFixed(2)}</span>
+                <span>{formatVNDShort(subtotal)}</span>
               </div>
               <div className="flex justify-between">
                 <span>VAT (10%):</span>
-                <span>${vat.toFixed(2)}</span>
+                <span>{formatVNDShort(vat)}</span>
               </div>
-              {deliveryFees.regular > 0 && (
+              {deliveryFees.originalFee > 0 && (
                 <div className="flex justify-between">
-                  <span>Regular Delivery:</span>
-                  <span>{deliveryFees.regular.toLocaleString()} VND</span>
-                </div>
-              )}
-              {deliveryFees.rush > 0 && (
-                <div className="flex justify-between">
-                  <span>Rush Delivery:</span>
-                  <span>{deliveryFees.rush.toLocaleString()} VND</span>
+                  <span>Delivery:</span>
+                  <div className="text-right">
+                    {deliveryFees.discount > 0 ? (
+                      <>
+                        <span className="line-through text-gray-400 mr-2">{formatVNDShort(deliveryFees.originalFee)}</span>
+                        <span>{formatVNDShort(deliveryFees.fee)}</span>
+                      </>
+                    ) : (
+                      <span>{formatVNDShort(deliveryFees.fee)}</span>
+                    )}
+                  </div>
                 </div>
               )}
               <Separator />
               <div className="flex justify-between font-semibold text-lg">
                 <span>Total:</span>
-                <span>${total.toFixed(2)}</span>
+                <span>{formatVNDShort(total)}</span>
               </div>
             </div>
 

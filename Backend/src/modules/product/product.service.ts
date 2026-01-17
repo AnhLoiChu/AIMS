@@ -90,10 +90,56 @@ export class ProductService {
     });
   }
 
-  async findAll(limit: number): Promise<Product[]> {
-    return await this.productRepo.find({
-      take: limit,
-    });
+  async findAll(params: {
+    search?: string;
+    category?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    sort?: string;
+    limit: number;
+  }): Promise<Product[]> {
+    const { search, category, minPrice, maxPrice, sort, limit } = params;
+    const qb = this.productRepo.createQueryBuilder('product');
+
+    if (search) {
+      qb.andWhere(
+        '(LOWER(product.title) LIKE LOWER(:search) OR LOWER(product.category) LIKE LOWER(:search))',
+        { search: `%${search}%` },
+      );
+    }
+
+    if (category && category !== 'all') {
+      // Assuming 'type' column stores 'book', 'cd', etc. matching filter categories
+      // Or 'category' column depending on usage. Based on entity, 'type' is enum-like, 'category' is string.
+      // Let's search both or stick to type if frontend sends type.
+      // Frontend uses 'type' usually (book, cd, dvd).
+      qb.andWhere('product.type = :category', { category });
+    }
+
+    if (minPrice !== undefined) {
+      qb.andWhere('product.current_price >= :minPrice', { minPrice });
+    }
+
+    if (maxPrice !== undefined) {
+      qb.andWhere('product.current_price <= :maxPrice', { maxPrice });
+    }
+
+    if (sort === 'random') {
+      qb.orderBy('RANDOM()');
+    } else if (sort === 'price_asc') {
+      qb.orderBy('product.current_price', 'ASC');
+    } else if (sort === 'price_desc') {
+      qb.orderBy('product.current_price', 'DESC');
+    } else if (sort === 'newest') {
+      qb.orderBy('product.creation_date', 'DESC');
+    } else {
+      // Default sort
+      qb.orderBy('product.title', 'ASC');
+    }
+
+    qb.take(limit);
+
+    return await qb.getMany();
   }
 
   async update(

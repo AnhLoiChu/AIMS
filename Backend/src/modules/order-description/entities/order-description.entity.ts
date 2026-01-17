@@ -19,6 +19,5 @@ export class OrderDescription {
   @Column('int')
   quantity: number;
 
-  @Column()
-  is_rush: boolean;
+
 }

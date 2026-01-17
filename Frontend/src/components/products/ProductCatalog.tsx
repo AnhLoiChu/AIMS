@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Slider } from '@/components/ui/slider';
 import { apiService, Product } from '@/services/api';
 import { ProductDetail } from './ProductDetail';
+import { formatVNDShort } from '@/utils/format';
 
 interface ProductCatalogProps {
   onAddToCart: (product: Product, quantity: number) => void;
@@ -17,17 +19,38 @@ export const ProductCatalog = ({ onAddToCart }: ProductCatalogProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('title');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('random'); // Default random
   const [filterCategory, setFilterCategory] = useState('all');
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 500000]); // 0 to 500k VND default
+  const [debouncedPriceRange, setDebouncedPriceRange] = useState<[number, number]>([0, 500000]);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedQuantities, setSelectedQuantities] = useState<Record<string, number>>({});
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        const productData = await apiService.getProducts(100); // Fetch more products
+        setLoading(true);
+        const [minPrice, maxPrice] = debouncedPriceRange;
+
+        const productData = await apiService.getProducts({
+          limit: 100,
+          search: searchQuery,
+          category: filterCategory,
+          sort: sortBy,
+          minPrice,
+          maxPrice
+        });
         setProducts(productData);
       } catch (err) {
         console.error('Failed to fetch products:', err);
@@ -38,30 +61,13 @@ export const ProductCatalog = ({ onAddToCart }: ProductCatalogProps) => {
     };
 
     fetchProducts();
-  }, []);
+    fetchProducts();
+    fetchProducts();
+  }, [debouncedSearchQuery, filterCategory, sortBy, debouncedPriceRange]); // Depend on debounced price range
 
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         product.category.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = filterCategory === 'all' || product.type === filterCategory;
-    return matchesSearch && matchesCategory;
-  });
-
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
-    switch (sortBy) {
-      case 'price_low':
-        return a.current_price - b.current_price;
-      case 'price_high':
-        return b.current_price - a.current_price;
-      case 'title':
-      default:
-        return a.title.localeCompare(b.title);
-    }
-  });
-
-  const paginatedProducts = sortedProducts.slice((currentPage - 1) * 20, currentPage * 20);
-  const totalPages = Math.ceil(sortedProducts.length / 20);
+  // Client-side pagination of filtered results
+  const paginatedProducts = products.slice((currentPage - 1) * 20, currentPage * 20);
+  const totalPages = Math.ceil(products.length / 20);
 
   const handleAddToCart = (product: Product) => {
     const quantity = selectedQuantities[product.product_id] || 1;
@@ -73,7 +79,7 @@ export const ProductCatalog = ({ onAddToCart }: ProductCatalogProps) => {
     switch (type) {
       case 'book': return '📚';
       case 'cd': return '💿';
-      case 'lp': return '🎵';
+      case 'news': return '📰';
       case 'dvd': return '📀';
       default: return '📦';
     }
@@ -97,13 +103,7 @@ export const ProductCatalog = ({ onAddToCart }: ProductCatalogProps) => {
     );
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-lg">Loading products...</div>
-      </div>
-    );
-  }
+  // if (loading) removed to prevent unmounting filters
 
   if (error) {
     return (
@@ -134,7 +134,7 @@ export const ProductCatalog = ({ onAddToCart }: ProductCatalogProps) => {
               <SelectItem value="all">All Categories</SelectItem>
               <SelectItem value="book">Books</SelectItem>
               <SelectItem value="cd">CDs</SelectItem>
-              <SelectItem value="lp">LP Records</SelectItem>
+              <SelectItem value="news">Newspapers</SelectItem>
               <SelectItem value="dvd">DVDs</SelectItem>
             </SelectContent>
           </Select>
@@ -144,16 +144,37 @@ export const ProductCatalog = ({ onAddToCart }: ProductCatalogProps) => {
             </SelectTrigger>
             <SelectContent className="bg-white z-50">
               <SelectItem value="title">Sort by Title</SelectItem>
-              <SelectItem value="price_low">Price: Low to High</SelectItem>
-              <SelectItem value="price_high">Price: High to Low</SelectItem>
+              <SelectItem value="price_asc">Price: Low to High</SelectItem>
+              <SelectItem value="price_desc">Price: High to Low</SelectItem>
+              <SelectItem value="random">Random</SelectItem>
             </SelectContent>
           </Select>
+          
+          <div className="flex flex-col gap-2 min-w-[350px]">
+            <span className="text-sm font-medium">
+              Price: {formatVNDShort(priceRange[0])} - {formatVNDShort(priceRange[1])}
+            </span>
+            <Slider
+              defaultValue={[0, 500000]}
+              max={500000}
+              step={10000}
+              value={priceRange}
+              onValueChange={(val) => setPriceRange(val as [number, number])}
+              onValueCommit={(val) => setDebouncedPriceRange(val as [number, number])}
+              className="w-full"
+            />
+          </div>
         </div>
         <div className="text-sm text-gray-600">
-          {filteredProducts.length} products found
+          {products.length} products found
         </div>
       </div>
 
+      {loading ? (
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-lg">Loading products...</div>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {paginatedProducts.map((product) => (
           <Card key={product.product_id} className="hover:shadow-lg transition-shadow cursor-pointer">
@@ -169,11 +190,6 @@ export const ProductCatalog = ({ onAddToCart }: ProductCatalogProps) => {
                   <Badge variant="secondary" className="ml-2">
                     {product.type.toUpperCase()}
                   </Badge>
-                  {product.rush_order_eligibility && (
-                    <Badge variant="outline" className="text-blue-600 border-blue-200 text-xs">
-                      Rush
-                    </Badge>
-                  )}
                 </div>
               </div>
               <div className="text-sm text-gray-600">
@@ -186,11 +202,11 @@ export const ProductCatalog = ({ onAddToCart }: ProductCatalogProps) => {
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-xl font-bold text-green-600">
-                      ${product.current_price.toFixed(2)}
+                      {formatVNDShort(product.current_price)}
                     </p>
                     {product.value !== product.current_price && (
                       <p className="text-sm text-gray-500 line-through">
-                        ${product.value.toFixed(2)}
+                        {formatVNDShort(product.value)}
                       </p>
                     )}
                   </div>
@@ -233,6 +249,7 @@ export const ProductCatalog = ({ onAddToCart }: ProductCatalogProps) => {
           </Card>
         ))}
       </div>
+      )}
 
       {totalPages > 1 && (
         <div className="flex justify-center space-x-2">

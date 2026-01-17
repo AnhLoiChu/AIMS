@@ -21,8 +21,6 @@ export const SystemSettings = () => {
     vatRate: 10,
     freeShippingThreshold: 100000,
     maxFreeShipping: 25000,
-    rushDeliveryFee: 10000,
-    enableRushDelivery: true,
     enableEmailNotifications: true
   });
 
@@ -177,23 +175,7 @@ export const SystemSettings = () => {
                 onChange={(e) => updateSetting('maxFreeShipping', parseInt(e.target.value))}
               />
             </div>
-            <div>
-              <Label htmlFor="rushFee">Rush Delivery Fee (VND)</Label>
-              <Input
-                id="rushFee"
-                type="number"
-                value={settings.rushDeliveryFee}
-                onChange={(e) => updateSetting('rushDeliveryFee', parseInt(e.target.value))}
-              />
-            </div>
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="rushDelivery"
-                checked={settings.enableRushDelivery}
-                onCheckedChange={(checked) => updateSetting('enableRushDelivery', checked)}
-              />
-              <Label htmlFor="rushDelivery">Enable Rush Delivery</Label>
-            </div>
+
           </CardContent>
         </Card>
       </div>

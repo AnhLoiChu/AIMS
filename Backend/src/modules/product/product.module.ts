@@ -8,7 +8,7 @@ import { OrderDescription } from '../order-description/entities/order-descriptio
 import { EditHistory } from '../edit-history/entities/edit-history.entity';
 import { DvdModule } from '../dvd/dvd.module';
 import { CdModule } from '../cd/cd.module';
-import { LpModule } from '../lp/lp.module';
+import { NewsModule } from '../news/news.module';
 import { BookModule } from '../book/book.module';
 import { EditHistoryModule } from '../edit-history/edit-history.module';
 import { UserModule } from '../user/user.module';
@@ -28,7 +28,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     ]),
     DvdModule,
     CdModule,
-    LpModule,
+    NewsModule,
     BookModule,
     EditHistoryModule,
     UserModule,

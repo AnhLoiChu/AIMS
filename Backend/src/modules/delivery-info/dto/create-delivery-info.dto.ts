@@ -23,14 +23,5 @@ export class CreateDeliveryInfoDto {
   @IsString()
   address: string;
 
-  @IsOptional()
-  @Transform(({ value }) => value ?? null)
-  @IsString()
-  instruction?: string | null;
 
-  @IsOptional()
-  @Transform(({ value }) => value ?? null)
-  @Type(() => Date)
-  @IsDate()
-  delivery_time?: Date | null;
 }
