@@ -25,11 +25,18 @@ export const UserManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [newUserData, setNewUserData] = useState({
     name: '',
     email: '',
     phone: '',
     password: ''
+  });
+  const [editUserData, setEditUserData] = useState({
+    name: '',
+    email: '',
+    phone: ''
   });
 
   useEffect(() => {
@@ -62,11 +69,11 @@ export const UserManagement = () => {
     try {
       const user = users.find(u => u.id === userId);
       if (!user) return;
-      
+
       await apiService.updateManager(parseInt(userId), {
         is_disabled: !user.is_disabled
       });
-      
+
       await fetchUsers();
     } catch (err: any) {
       alert('Failed to update user status: ' + (err.message || 'Unknown error'));
@@ -76,6 +83,31 @@ export const UserManagement = () => {
   const handleResetPassword = (userId: string) => {
     // In real app, this would send a reset email
     alert(`Password reset email sent to user ${userId}`);
+  };
+
+  const handleEditUser = (user: User) => {
+    setEditingUser(user);
+    setEditUserData({
+      name: user.name,
+      email: user.email,
+      phone: user.phone
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+
+    try {
+      await apiService.updateManager(parseInt(editingUser.id), editUserData);
+      await fetchUsers();
+      setShowEditModal(false);
+      setEditingUser(null);
+      alert('User updated successfully!');
+    } catch (err: any) {
+      alert('Failed to update user: ' + (err.message || 'Unknown error'));
+    }
   };
 
   const handleAddUser = async (e: React.FormEvent) => {
@@ -180,6 +212,59 @@ export const UserManagement = () => {
         </div>
       )}
 
+      {/* Edit User Modal */}
+      {showEditModal && editingUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Edit User: {editingUser.name}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSaveEdit} className="space-y-4">
+                <div>
+                  <Label htmlFor="edit-name">Name *</Label>
+                  <Input
+                    id="edit-name"
+                    value={editUserData.name}
+                    onChange={(e) => setEditUserData(prev => ({ ...prev, name: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-email">Email *</Label>
+                  <Input
+                    id="edit-email"
+                    type="email"
+                    value={editUserData.email}
+                    onChange={(e) => setEditUserData(prev => ({ ...prev, email: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-phone">Phone *</Label>
+                  <Input
+                    id="edit-phone"
+                    type="tel"
+                    value={editUserData.phone}
+                    onChange={(e) => setEditUserData(prev => ({ ...prev, phone: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="flex space-x-2">
+                  <Button type="submit" className="bg-green-600 hover:bg-green-700">Save Changes</Button>
+                  <Button type="button" variant="outline" onClick={() => {
+                    setShowEditModal(false);
+                    setEditingUser(null);
+                  }}>
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">User Management</h2>
         <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => setShowAddModal(true)}>
@@ -239,19 +324,24 @@ export const UserManagement = () => {
                   <TableCell>{user.created_date}</TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
-                      <Button variant="outline" size="sm" title="Edit User">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        title="Edit User"
+                        onClick={() => handleEditUser(user)}
+                      >
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => handleToggleUserStatus(user.id)}
                         title={user.is_disabled ? "Enable User" : "Disable User"}
                       >
                         {user.is_disabled ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
                       </Button>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => handleResetPassword(user.id)}
                         title="Reset Password"
