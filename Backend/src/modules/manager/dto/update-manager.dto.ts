@@ -2,9 +2,9 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEmail,
   IsOptional,
-  IsPhoneNumber,
   IsString,
   MinLength,
+  IsBoolean,
 } from 'class-validator';
 
 export class UpdateManagerDto {
@@ -26,7 +26,7 @@ export class UpdateManagerDto {
     example: '0912345678',
   })
   @IsOptional()
-  @IsPhoneNumber('VN')
+  @IsString()
   phone?: string;
 
   @ApiPropertyOptional({
@@ -38,4 +38,13 @@ export class UpdateManagerDto {
   @IsString()
   @MinLength(6)
   password?: string;
+
+  @ApiPropertyOptional({
+    description: 'Is user active (not disabled)',
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  is_active?: boolean;
 }
+

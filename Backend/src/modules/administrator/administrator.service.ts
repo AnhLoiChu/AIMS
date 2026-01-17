@@ -127,7 +127,7 @@ export class AdministratorService {
   // Reset user password
   async resetPassword(userId: number, newPassword: string): Promise<{ message: string }> {
     const user = await this.findUserById(userId);
-    user.password = await bcrypt.hash(newPassword, 10);
+    user.password = newPassword;
     await this.userRepository.save(user);
     return { message: `Password for user ID ${userId} has been reset` };
   }

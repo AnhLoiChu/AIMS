@@ -272,7 +272,11 @@ class ApiService {
 
   // Manager/User Management APIs
   async getManagers(): Promise<any[]> {
-    return this.request("/manager");
+    return this.request("/administrator/users");
+  }
+
+  async getRoles(): Promise<{ role_id: number; name: string }[]> {
+    return this.request("/role");
   }
 
   async createManager(managerData: {
@@ -280,8 +284,9 @@ class ApiService {
     email: string;
     phone: string;
     password: string;
+    roleIds?: number[];
   }): Promise<any> {
-    return this.request("/manager", {
+    return this.request("/administrator/users", {
       method: "POST",
       body: JSON.stringify(managerData),
     });
@@ -293,18 +298,25 @@ class ApiService {
       name: string;
       email: string;
       phone: string;
-      is_disabled: boolean;
+      is_active: boolean;
     }>
   ): Promise<any> {
-    return this.request(`/manager/${userId}`, {
-      method: "PATCH",
+    return this.request(`/administrator/users/${userId}`, {
+      method: "PUT",
       body: JSON.stringify(managerData),
     });
   }
 
   async deleteManager(userId: number): Promise<any> {
-    return this.request(`/manager/${userId}`, {
+    return this.request(`/administrator/users/${userId}`, {
       method: "DELETE",
+    });
+  }
+
+  async resetManagerPassword(userId: number, newPassword: string = "123456"): Promise<any> {
+    return this.request(`/administrator/users/${userId}/reset-password`, {
+      method: "POST",
+      body: JSON.stringify({ newPassword }),
     });
   }
 }

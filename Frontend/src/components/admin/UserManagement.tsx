@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Edit, Lock, Unlock, RotateCcw } from 'lucide-react';
+import { Plus, Edit, Lock, Unlock, RotateCcw, Trash2 } from 'lucide-react';
 import { apiService } from '@/services/api';
 
 interface User {
@@ -19,8 +19,14 @@ interface User {
   created_date: string;
 }
 
+interface Role {
+  role_id: number;
+  name: string;
+}
+
 export const UserManagement = () => {
   const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +37,8 @@ export const UserManagement = () => {
     name: '',
     email: '',
     phone: '',
-    password: ''
+    password: '',
+    selectedRoles: [] as number[]
   });
   const [editUserData, setEditUserData] = useState({
     name: '',
@@ -41,7 +48,32 @@ export const UserManagement = () => {
 
   useEffect(() => {
     fetchUsers();
+    fetchRoles();
   }, []);
+
+  const fetchRoles = async () => {
+    try {
+      const data = await apiService.getRoles();
+      if (data && data.length > 0) {
+        setRoles(data);
+      } else {
+        // Fallback to default roles if API returns empty
+        setRoles([
+          { role_id: 1, name: 'admin' },
+          { role_id: 2, name: 'manager' },
+          { role_id: 3, name: 'customer' }
+        ]);
+      }
+    } catch (err) {
+      console.error('Failed to load roles', err);
+      // Fallback to default roles if API fails
+      setRoles([
+        { role_id: 1, name: 'admin' },
+        { role_id: 2, name: 'manager' },
+        { role_id: 3, name: 'customer' }
+      ]);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -54,7 +86,7 @@ export const UserManagement = () => {
         email: u.email,
         phone: u.phone,
         roles: u.roles?.map((r: any) => r.name) || ['manager'],
-        is_disabled: u.is_disabled || false,
+        is_disabled: !u.is_active,
         created_date: new Date(u.created_date || Date.now()).toISOString().split('T')[0]
       })));
     } catch (err: any) {
@@ -71,7 +103,7 @@ export const UserManagement = () => {
       if (!user) return;
 
       await apiService.updateManager(parseInt(userId), {
-        is_disabled: !user.is_disabled
+        is_active: user.is_disabled  // Invert: if disabled, set active to true
       });
 
       await fetchUsers();
@@ -80,9 +112,29 @@ export const UserManagement = () => {
     }
   };
 
-  const handleResetPassword = (userId: string) => {
-    // In real app, this would send a reset email
-    alert(`Password reset email sent to user ${userId}`);
+  const handleResetPassword = async (userId: string) => {
+    if (!confirm('Bạn có chắc muốn reset mật khẩu về 123456?')) {
+      return;
+    }
+    try {
+      await apiService.resetManagerPassword(parseInt(userId));
+      alert('Đã reset mật khẩu thành công! Mật khẩu mới: 123456');
+    } catch (err: any) {
+      alert('Lỗi reset mật khẩu: ' + (err.message || 'Unknown error'));
+    }
+  };
+
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (!confirm(`Bạn có chắc muốn xóa user "${userName}"?`)) {
+      return;
+    }
+    try {
+      await apiService.deleteManager(parseInt(userId));
+      await fetchUsers();
+      alert('Đã xóa user thành công!');
+    } catch (err: any) {
+      alert('Lỗi xóa user: ' + (err.message || 'Unknown error'));
+    }
   };
 
   const handleEditUser = (user: User) => {
@@ -113,19 +165,27 @@ export const UserManagement = () => {
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await apiService.createManager(newUserData);
+      await apiService.createManager({
+        name: newUserData.name,
+        email: newUserData.email,
+        phone: newUserData.phone,
+        password: newUserData.password,
+        roleIds: newUserData.selectedRoles
+      });
       await fetchUsers();
       setShowAddModal(false);
-      setNewUserData({ name: '', email: '', phone: '', password: '' });
+      setNewUserData({ name: '', email: '', phone: '', password: '', selectedRoles: [] });
     } catch (err: any) {
       alert('Failed to create user: ' + (err.message || 'Unknown error'));
     }
   };
 
-  const filteredUsers = users.filter(user =>
-    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredUsers = users
+    .filter(user =>
+      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .sort((a, b) => new Date(b.created_date).getTime() - new Date(a.created_date).getTime());
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -199,6 +259,34 @@ export const UserManagement = () => {
                     required
                     minLength={6}
                   />
+                </div>
+                <div>
+                  <Label>Roles</Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {roles.map((role) => (
+                      <label key={role.role_id} className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={newUserData.selectedRoles.includes(role.role_id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setNewUserData(prev => ({
+                                ...prev,
+                                selectedRoles: [...prev.selectedRoles, role.role_id]
+                              }));
+                            } else {
+                              setNewUserData(prev => ({
+                                ...prev,
+                                selectedRoles: prev.selectedRoles.filter(id => id !== role.role_id)
+                              }));
+                            }
+                          }}
+                          className="h-4 w-4"
+                        />
+                        <span className="text-sm capitalize">{role.name}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
                 <div className="flex space-x-2">
                   <Button type="submit" className="bg-blue-600 hover:bg-blue-700">Create</Button>

@@ -20,6 +20,7 @@ import { MailModule } from './modules/mail/mail.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { EditHistoryModule } from './modules/edit-history/edit-history.module';
 import { FeeCalculationModule } from './modules/fee-calculation/fee-calculation.module';
+import { RoleModule } from './modules/role/role.module';
 // npm install @nestjs/schedule
 
 @Module({
@@ -41,6 +42,7 @@ import { FeeCalculationModule } from './modules/fee-calculation/fee-calculation.
     AuthModule,
     EditHistoryModule,
     FeeCalculationModule,
+    RoleModule,
   ],
   controllers: [AppController],
   providers: [AppService],

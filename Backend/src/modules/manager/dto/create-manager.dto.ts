@@ -1,6 +1,5 @@
 import {
   IsEmail,
-  IsPhoneNumber,
   IsString,
   MinLength,
   IsNumber,
@@ -21,10 +20,10 @@ export class CreateManagerDto {
   email: string;
 
   @ApiProperty({
-    example: '+84901234567',
-    description: 'Vietnamese phone number',
+    example: '0901234567',
+    description: 'Phone number',
   })
-  @IsPhoneNumber('VN')
+  @IsString()
   phone: string;
 
   @ApiProperty({

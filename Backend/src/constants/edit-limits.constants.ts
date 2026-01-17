@@ -4,7 +4,7 @@ export const EDIT_LIMITS = {
   MAX_PRODUCT_EDITS_PER_DAY: 5,
 
   // Maximum number of times a manager can edit products per day
-  MAX_MANAGER_EDITS_PER_DAY: 5,
+  MAX_MANAGER_EDITS_PER_DAY: 20,
 
   // Maximum number of times a manager can delete products per day
   MAX_MANAGER_DELETES_PER_DAY: 20,
