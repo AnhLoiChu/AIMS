@@ -260,8 +260,7 @@ class ApiService {
   }
 
   async getPendingOrders(): Promise<any> {
-    const data = await this.request("/order/pending-orders");
-    return data.orders || [];
+    return this.request("/order/pending-orders");
   }
 
   async approveOrder(orderId: string | number, status: 'Shipping' | 'Cancelled'): Promise<any> {
