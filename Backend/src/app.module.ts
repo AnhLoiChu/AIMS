@@ -19,6 +19,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { MailModule } from './modules/mail/mail.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { EditHistoryModule } from './modules/edit-history/edit-history.module';
+import { FeeCalculationModule } from './modules/fee-calculation/fee-calculation.module';
 // npm install @nestjs/schedule
 
 @Module({
@@ -39,6 +40,7 @@ import { EditHistoryModule } from './modules/edit-history/edit-history.module';
     MailModule,
     AuthModule,
     EditHistoryModule,
+    FeeCalculationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
