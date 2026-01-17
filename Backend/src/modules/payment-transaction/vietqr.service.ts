@@ -33,7 +33,7 @@ export class VietQRService implements PaymentGateway {
             this.logger.log(`Generated VietQR Data: ${JSON.stringify(qrData)}`);
 
             // Prefer using the official VietQR link (Redirect)
-            // This link likely opens a banking app or a payment landing page.
+            // This link opens a payment landing page.
             if (qrData.qrLink) {
                 return {
                     url: qrData.qrLink,
@@ -42,12 +42,7 @@ export class VietQRService implements PaymentGateway {
             }
 
             // Fallback: If for some reason qrLink is missing but we have QR info, 
-            // we try to return a constructed image (though user prefers REDIRECT/Dynamic)
-            // But strict requirement is: Use the dynamic response.
-            // If API failed to return qrLink, we probably should throw or log.
-
-            // Let's assume we maintain fallback just in case, BUT mapped to QR_IMAGE so FE handles it.
-            // However, user specifically asked: "Why not redirect to VietQR payment page?"
+            // we try to return a constructed image (though user prefers REDIRECT/Dynamic)ok
 
             const bankCode = this.configService.get('VIETQR_BANK_CODE');
             const bankAccount = this.configService.get('VIETQR_BANK_ACCOUNT');

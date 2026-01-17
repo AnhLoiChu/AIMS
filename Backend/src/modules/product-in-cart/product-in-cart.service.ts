@@ -97,8 +97,9 @@ export class ProductInCartService extends TypeOrmCrudService<ProductInCart> {
         `Cart ${cartId} does not contain product ${productId}`,
       );
     } else {
-      if (productInCart.quantity > quantity) {
+      if (quantity > 0 && productInCart.quantity > quantity) {
         productInCart.quantity -= quantity;
+        return this.productInCartRepository.save(productInCart);
       } else {
         await this.productInCartRepository.remove(productInCart);
         return {
@@ -106,6 +107,5 @@ export class ProductInCartService extends TypeOrmCrudService<ProductInCart> {
         };
       }
     }
-    return this.productInCartRepository.save(productInCart);
   }
 }

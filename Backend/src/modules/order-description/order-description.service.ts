@@ -19,7 +19,7 @@ export class OrderDescriptionService extends TypeOrmCrudService<OrderDescription
     super(orderDescriptionRepository);
   }
 
-  // create order_description matching product_in_cart for an order; is_rush initially set to 'NO'
+  // create order_description matching product_in_cart for an order;
   async createOrderDescription(orderId: number, productIds: number[]) {
     // check if order exist
     const order = await this.orderRepository.findOne({
