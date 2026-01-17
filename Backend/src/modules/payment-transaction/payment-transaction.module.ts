@@ -23,7 +23,22 @@ import { PayPalController } from './paypal.controller';
     MailModule,
   ],
   controllers: [PayOrderController, VietQRController, PayPalController],
-  providers: [VietQRService, PayPalService, PaymentTransactionService, PaymentGatewayFactory],
-  exports: [VietQRService, PayPalService, PaymentTransactionService, PaymentGatewayFactory],
+  providers: [
+    VietQRService,
+    PayPalService,
+    PaymentTransactionService,
+    PaymentGatewayFactory,
+    {
+      provide: 'PAYMENT_GATEWAYS',
+      useFactory: (vietqr: VietQRService, paypal: PayPalService) => [vietqr, paypal],
+      inject: [VietQRService, PayPalService],
+    },
+  ],
+  exports: [
+    VietQRService,
+    PayPalService,
+    PaymentTransactionService,
+    PaymentGatewayFactory,
+  ],
 })
 export class PaymentTransactionModule { }

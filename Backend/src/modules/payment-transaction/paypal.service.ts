@@ -4,12 +4,17 @@ import { PaymentGateway, PaymentResponse } from './payment-gateway.interface';
 import { CreatePaymentTransactionDto } from './dto/create-payment-transaction.dto';
 import { Order } from '../order/entities/order.entity';
 import axios from 'axios';
+import { PaymentException } from './exceptions/payment.exception';
 
 @Injectable()
 export class PayPalService implements PaymentGateway {
     private readonly logger = new Logger(PayPalService.name);
 
     constructor(private configService: ConfigService) { }
+
+    getPaymentMethodName(): string {
+        return 'PAYPAL';
+    }
 
     async processPayment(
         ipAddr: string,
@@ -97,7 +102,11 @@ export class PayPalService implements PaymentGateway {
             };
         } catch (error) {
             this.logger.error('Error processing PayPal payment', error.response?.data || error.message);
-            throw error;
+            throw new PaymentException(
+                'Failed to process PayPal payment',
+                'PAYPAL',
+                error.response?.data || error.message
+            );
         }
     }
 

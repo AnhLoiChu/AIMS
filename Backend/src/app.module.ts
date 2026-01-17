@@ -46,5 +46,5 @@ import { FeeCalculationModule } from './modules/fee-calculation/fee-calculation.
   providers: [AppService],
 })
 export class AppModule {
-  constructor(private dataSource: DataSource) {}
+  constructor(private dataSource: DataSource) { }
 }

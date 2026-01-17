@@ -9,6 +9,7 @@ export interface PaymentResponse {
 }
 
 export interface PaymentGateway {
+  getPaymentMethodName(): string;
   processPayment(
     ipAddr: string,
     order: Order,

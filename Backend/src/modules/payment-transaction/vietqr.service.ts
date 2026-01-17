@@ -4,12 +4,17 @@ import { PaymentGateway, PaymentResponse } from './payment-gateway.interface';
 import { CreatePaymentTransactionDto } from './dto/create-payment-transaction.dto';
 import { Order } from '../order/entities/order.entity';
 import axios from 'axios';
+import { PaymentException } from './exceptions/payment.exception';
 
 @Injectable()
 export class VietQRService implements PaymentGateway {
     private readonly logger = new Logger(VietQRService.name);
 
     constructor(private configService: ConfigService) { }
+
+    getPaymentMethodName(): string {
+        return 'VIETQR';
+    }
 
     async processPayment(
         ipAddr: string,
@@ -57,7 +62,11 @@ export class VietQRService implements PaymentGateway {
             };
         } catch (error) {
             this.logger.error('Error processing VietQR payment', error);
-            throw error;
+            throw new PaymentException(
+                'Failed to process VietQR payment',
+                'VIETQR',
+                error.response?.data || error.message
+            );
         }
     }
 
