@@ -81,6 +81,48 @@ export const CustomerDashboard = ({ user, onLogout, onRoleSwitch, availableRoles
     fetchCart();
   }, [user.id]);
 
+  // Handle URL parameters (for PayPal redirect)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentStatusParam = params.get('payment');
+    const orderIdParam = params.get('orderId');
+
+    if (paymentStatusParam === 'success' && orderIdParam) {
+      // Small delay to ensure everything is loaded
+      setTimeout(() => {
+        setOrderSuccessData({
+          orderData: {
+            orderId: parseInt(orderIdParam),
+            items: [], // We don't have items on reload easily
+            deliveryInfo: {
+              recipient_name: user.name,
+              email: user.email,
+              phone: "--",
+              province: "--",
+              address: "--"
+            },
+            pricing: {
+              subtotal: 0,
+              vat: 0,
+              deliveryFees: { regular: 0 },
+              total: 0
+            }
+          },
+          transactionData: {
+            transactionId: `PAYPAL-${orderIdParam}`,
+            transactionContent: `PayPal Payment for Order #${orderIdParam}`,
+            transactionDateTime: new Date().toISOString()
+          }
+        });
+        setActiveTab('order-success');
+
+        // Clean up URL parameters without refreshing
+        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+        window.history.pushState({ path: newUrl }, '', newUrl);
+      }, 500);
+    }
+  }, [user]);
+
   const addToCart = async (product: Product, quantity: number) => {
     try {
       await apiService.addProductToCart(user.id, product.product_id, quantity);
@@ -147,36 +189,41 @@ export const CustomerDashboard = ({ user, onLogout, onRoleSwitch, availableRoles
     }
   };
 
-  const handleOrderComplete = async (orderData: any) => {
+  const handleOrderComplete = async (result: any) => {
     try {
-      // Create order with cart ID and product IDs
-      const productIds = cartItems.map(item => parseInt(item.id));
-      const createOrderResult = await apiService.createOrder(parseInt(user.id), productIds);
-      console.log('Order created successfully:', createOrderResult);
+      // result should contain orderId and success status
+      console.log('Order completed successfully:', result);
 
-      const normalDeliveryData = {
-        order_id: createOrderResult.order.order_id,
-        recipient_name: orderData.deliveryInfo.recipient_name,
-        email: orderData.deliveryInfo.email,
-        phone: orderData.deliveryInfo.phone,
-        province: orderData.deliveryInfo.province,
-        address: orderData.deliveryInfo.address
-      };
-      await apiService.createNormalOrderDeliveryInfo(normalDeliveryData);
-      console.log('Normal order delivery info created successfully');
-
-      // Generate mock transaction data (in real app, this would come from payment processor)
-      const transactionData = {
-        transactionId: `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-        transactionContent: `Payment for order containing ${orderData.items.length} items`,
+      // We generate mock transaction data for display if not provided
+      const transactionData = result.transactionData || {
+        transactionId: `TXN-${Date.now()}`,
+        transactionContent: `Payment for Order #${result.orderId}`,
         transactionDateTime: new Date().toISOString()
+      };
+
+      const orderData = {
+        orderId: result.orderId,
+        items: cartItems,
+        deliveryInfo: result.deliveryInfo || {
+          recipient_name: user.name,
+          email: user.email,
+          phone: "N/A",
+          province: "N/A",
+          address: "N/A"
+        },
+        pricing: result.pricing || {
+          subtotal: cartItems.reduce((sum, item) => sum + (item.current_price * item.quantity), 0),
+          vat: cartItems.reduce((sum, item) => sum + (item.current_price * item.quantity), 0) * 0.1,
+          deliveryFees: { regular: 0 },
+          total: cartItems.reduce((sum, item) => sum + (item.current_price * item.quantity), 0) * 1.1
+        }
       };
 
       setOrderSuccessData({ orderData, transactionData });
       setActiveTab('order-success');
-      setCartItems([]); // Clear cart after successful order
+      setCartItems([]); // Clear local state immediately
     } catch (error) {
-      console.error('Failed to complete order:', error);
+      console.error('Failed to update UI after order completion:', error);
     }
   };
 

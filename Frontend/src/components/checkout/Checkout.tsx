@@ -197,10 +197,18 @@ export const Checkout = ({ cartItems, orderId, onBack, onOrderComplete }: Checko
 
             // Wait a bit to show success message then complete
             setTimeout(() => {
+              const subtotal = cartItems.reduce((sum, item) => sum + (item.current_price * item.quantity), 0);
+              const vat = subtotal * 0.1;
               onOrderComplete({
                 orderId,
-                // We can fetch more details if needed
-                status: 'SUCCESS'
+                status: 'SUCCESS',
+                deliveryInfo,
+                pricing: {
+                  subtotal,
+                  vat,
+                  deliveryFees: { regular: deliveryFees.fee },
+                  total: subtotal + vat + deliveryFees.fee
+                }
               });
             }, 2000);
           }
