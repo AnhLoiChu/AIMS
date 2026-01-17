@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ProductCatalog } from '@/components/products/ProductCatalog';
 import { ShoppingCart } from '@/components/cart/ShoppingCart';
@@ -33,6 +33,95 @@ export const CustomerDashboard = ({ user, onLogout, onRoleSwitch, availableRoles
     orderData: any;
     transactionData: any;
   } | null>(null);
+
+  // Load cart from backend on mount
+  useEffect(() => {
+    const fetchCart = async () => {
+      try {
+        const items = await apiService.viewCart(user.id);
+        // We need to fetch product details for each item because viewCart might return limited info
+        // Or if viewCart returns joined data, we parse it.
+        // Assuming viewCart returns: { product: { ... }, quantity: number }[] based on typical NestJS/TypeORM
+        // Let's check api.ts viewCart signature: returns { cart_id, product_id, quantity }[]
+        // This is insufficient for UI (need title, price).
+        // We might need to fetch product details for each ID or update Backend viewCart to return relations.
+
+        // For now, let's assume we need to fetch product details or that apiService needs update.
+        // Let's checking api.ts again via memory or context. 
+        // api.ts: viewCart returns data.productInCarts || [].
+        // Checking Backend CartService (not visible) but usually it includes relations.
+        // If api.ts types are strict we might need to cast.
+
+        // Let's try to map what we get. If only IDs, we must fetch products.
+        // Optimization: Fetch all products or fetch by IDs.
+
+        // Let's blindly trust that viewCart (Backend) includes 'product' relation as is common practice.
+        // If not, we will need to fix Backend CartService too.
+
+        // Actually, looking at order.service.ts, productInCartRepository is used.
+        // Let's assume for now we might be missing title/price.
+        console.log('Fetched cart items:', items);
+
+        // Temporarily: If items have 'product' field
+        const mappedItems: CartItem[] = items.map((item: any) => ({
+          id: item.product_id?.toString() || item.product?.product_id?.toString(),
+          title: item.product?.title || 'Loading...',
+          category: item.product?.category || 'General',
+          current_price: item.product?.value || 0, // Note: Backend uses 'value'
+          quantity: item.quantity,
+          maxQuantity: item.product?.quantity || 100,
+          weight: item.product?.weight || 0
+        })).filter(i => i.id); // Filter invalid
+
+        setCartItems(mappedItems);
+      } catch (err) {
+        console.error("Failed to load cart", err);
+      }
+    };
+    fetchCart();
+  }, [user.id]);
+
+  // Handle URL parameters (for PayPal redirect)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentStatusParam = params.get('payment');
+    const orderIdParam = params.get('orderId');
+
+    if (paymentStatusParam === 'success' && orderIdParam) {
+      // Small delay to ensure everything is loaded
+      setTimeout(() => {
+        setOrderSuccessData({
+          orderData: {
+            orderId: parseInt(orderIdParam),
+            items: [], // We don't have items on reload easily
+            deliveryInfo: {
+              recipient_name: user.name,
+              email: user.email,
+              phone: "--",
+              province: "--",
+              address: "--"
+            },
+            pricing: {
+              subtotal: 0,
+              vat: 0,
+              deliveryFees: { regular: 0 },
+              total: 0
+            }
+          },
+          transactionData: {
+            transactionId: `PAYPAL-${orderIdParam}`,
+            transactionContent: `PayPal Payment for Order #${orderIdParam}`,
+            transactionDateTime: new Date().toISOString()
+          }
+        });
+        setActiveTab('order-success');
+
+        // Clean up URL parameters without refreshing
+        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+        window.history.pushState({ path: newUrl }, '', newUrl);
+      }, 500);
+    }
+  }, [user]);
 
   const addToCart = async (product: Product, quantity: number) => {
     try {
@@ -100,36 +189,41 @@ export const CustomerDashboard = ({ user, onLogout, onRoleSwitch, availableRoles
     }
   };
 
-  const handleOrderComplete = async (orderData: any) => {
+  const handleOrderComplete = async (result: any) => {
     try {
-      // Create order with cart ID and product IDs
-      const productIds = cartItems.map(item => parseInt(item.id));
-      const createOrderResult = await apiService.createOrder(parseInt(user.id), productIds);
-      console.log('Order created successfully:', createOrderResult);
+      // result should contain orderId and success status
+      console.log('Order completed successfully:', result);
 
-      const normalDeliveryData = {
-        order_id: createOrderResult.order.order_id,
-        recipient_name: orderData.deliveryInfo.recipient_name,
-        email: orderData.deliveryInfo.email,
-        phone: orderData.deliveryInfo.phone,
-        province: orderData.deliveryInfo.province,
-        address: orderData.deliveryInfo.address
-      };
-      await apiService.createNormalOrderDeliveryInfo(normalDeliveryData);
-      console.log('Normal order delivery info created successfully');
-
-      // Generate mock transaction data (in real app, this would come from payment processor)
-      const transactionData = {
-        transactionId: `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-        transactionContent: `Payment for order containing ${orderData.items.length} items`,
+      // We generate mock transaction data for display if not provided
+      const transactionData = result.transactionData || {
+        transactionId: `TXN-${Date.now()}`,
+        transactionContent: `Payment for Order #${result.orderId}`,
         transactionDateTime: new Date().toISOString()
+      };
+
+      const orderData = {
+        orderId: result.orderId,
+        items: cartItems,
+        deliveryInfo: result.deliveryInfo || {
+          recipient_name: user.name,
+          email: user.email,
+          phone: "N/A",
+          province: "N/A",
+          address: "N/A"
+        },
+        pricing: result.pricing || {
+          subtotal: cartItems.reduce((sum, item) => sum + (item.current_price * item.quantity), 0),
+          vat: cartItems.reduce((sum, item) => sum + (item.current_price * item.quantity), 0) * 0.1,
+          deliveryFees: { regular: 0 },
+          total: cartItems.reduce((sum, item) => sum + (item.current_price * item.quantity), 0) * 1.1
+        }
       };
 
       setOrderSuccessData({ orderData, transactionData });
       setActiveTab('order-success');
-      setCartItems([]); // Clear cart after successful order
+      setCartItems([]); // Clear local state immediately
     } catch (error) {
-      console.error('Failed to complete order:', error);
+      console.error('Failed to update UI after order completion:', error);
     }
   };
 
@@ -196,8 +290,8 @@ export const CustomerDashboard = ({ user, onLogout, onRoleSwitch, availableRoles
             onUpdateItem={updateCartItem}
             onClearCart={clearCart}
             onOrderComplete={handleOrderComplete}
-            onOrderCreate={() => {}}
-            onDeliveryInfoCreate={() => {}}
+            onOrderCreate={() => { }}
+            onDeliveryInfoCreate={() => { }}
           />
         )}
         {activeTab === 'orders' && (

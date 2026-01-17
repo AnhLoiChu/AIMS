@@ -192,7 +192,8 @@ class ApiService {
     orderType: string;
     bankCode?: string;
     language?: string;
-  }): Promise<{ paymentUrl: string }> {
+    method?: string;
+  }): Promise<{ paymentUrl: string; type?: 'REDIRECT' | 'QR_IMAGE' }> {
     const response = await this.request("/payorder/create-payment-url", {
       method: "POST",
       body: JSON.stringify(data),
@@ -202,6 +203,110 @@ class ApiService {
 
     // Otherwise, assume the API returns a JSON with paymentUrl
     return response;
+  }
+  async checkPaymentStatus(orderId: number): Promise<{ success: boolean; data: any }> {
+    return this.request(`/payorder/transaction/${orderId}?t=${new Date().getTime()}`, {
+      method: "GET",
+    });
+  }
+
+  async calculateDeliveryFee(data: {
+    items: Array<{
+      product: { weight: number; dimensions: string; value: number };
+      quantity: number;
+    }>;
+    province: string;
+    subtotal: number;
+    strategyName?: string;
+  }): Promise<{
+    baseFee: number;
+    additionalFee: number;
+    discount: number;
+    finalFee: number;
+    calculationMethod: string;
+    details?: any;
+  }> {
+    return this.request("/fee-calculation/calculate", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Product Management APIs
+  async createProduct(productData: any): Promise<any> {
+    return this.request("/products", {
+      method: "POST",
+      body: JSON.stringify(productData),
+    });
+  }
+
+  async updateProduct(productId: number, productData: any): Promise<any> {
+    return this.request(`/products/${productId}`, {
+      method: "PATCH",
+      body: JSON.stringify(productData),
+    });
+  }
+
+  async deleteProducts(productIds: number[]): Promise<any> {
+    return this.request("/products/multiple", {
+      method: "DELETE",
+      body: JSON.stringify({ productIds }),
+    });
+  }
+
+  // Order History & Management
+  async getOrderHistory(userId: string): Promise<any[]> {
+    return this.request(`/order/history/${userId}`);
+  }
+
+  async getPendingOrders(): Promise<any> {
+    const data = await this.request("/order/pending-orders");
+    return data.orders || [];
+  }
+
+  async approveOrder(orderId: string | number, status: 'Shipping' | 'Cancelled'): Promise<any> {
+    return this.request(`/order/approve-reject/${orderId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  // Manager/User Management APIs
+  async getManagers(): Promise<any[]> {
+    return this.request("/manager");
+  }
+
+  async createManager(managerData: {
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+  }): Promise<any> {
+    return this.request("/manager", {
+      method: "POST",
+      body: JSON.stringify(managerData),
+    });
+  }
+
+  async updateManager(
+    userId: number,
+    managerData: Partial<{
+      name: string;
+      email: string;
+      phone: string;
+      is_disabled: boolean;
+    }>
+  ): Promise<any> {
+    return this.request(`/manager/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify(managerData),
+    });
+  }
+
+  async deleteManager(userId: number): Promise<any> {
+    return this.request(`/manager/${userId}`, {
+      method: "DELETE",
+    });
   }
 }
 
@@ -273,6 +378,32 @@ export interface ProductDetail extends Product {
   cd?: CDDetail;
   dvd?: DVDDetail;
   news?: NewsDetail;
+  // Flat fields from subtypes (backend returns merged object)
+  // Book fields
+  author?: string;
+  cover_type?: string;
+  publisher?: string;
+  publication_date?: string;
+  number_of_pages?: number;
+  language?: string;
+  genre?: string;
+  // CD fields
+  artist?: string;
+  record_label?: string;
+  tracklist?: string;
+  release_date?: string;
+  // DVD fields
+  director?: string;
+  runtime?: string;
+  studio?: string;
+  disc_type?: string;
+  subtitles?: string;
+  // News fields
+  editor_in_chief?: string;
+  issue_number?: string;
+  publication_frequency?: string;
+  issn?: string;
+  sections?: string;
 }
 
 

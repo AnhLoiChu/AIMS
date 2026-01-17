@@ -1,10 +1,18 @@
 import { Order } from '../order/entities/order.entity';
 import { CreatePaymentTransactionDto } from './dto/create-payment-transaction.dto';
 
+export type PaymentResponseType = 'REDIRECT' | 'QR_IMAGE' | 'QR_DATA';
+
+export interface PaymentResponse {
+  url: string;
+  type: PaymentResponseType;
+}
+
 export interface PaymentGateway {
-  createPaymentUrl(
+  getPaymentMethodName(): string;
+  processPayment(
     ipAddr: string,
     order: Order,
     paymentData: CreatePaymentTransactionDto,
-  ): string;
+  ): Promise<PaymentResponse>;
 }

@@ -25,4 +25,9 @@ export class CreatePaymentTransactionDto {
   @IsOptional()
   @IsString()
   language?: string;
+
+  @ApiPropertyOptional({ description: 'Payment method (VIETQR, PAYPAL, etc.)' })
+  @IsOptional()
+  @IsString()
+  method?: string;
 }

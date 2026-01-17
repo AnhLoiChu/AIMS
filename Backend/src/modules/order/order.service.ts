@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Order } from './entities/order.entity';
 import { TypeOrmCrudService } from '@dataui/crud-typeorm';
 import { ProductInCart } from '../product-in-cart/entities/product-in-cart.entity';
@@ -19,6 +19,7 @@ import { SchedulerRegistry } from '@nestjs/schedule';
 import { OrderDescriptionService } from '../order-description/order-description.service';
 import { DeliveryInfoService } from '../delivery-info/delivery-info.service';
 import { CreateDeliveryInfoDto } from '../delivery-info/dto/create-delivery-info.dto';
+import { FeeCalculationService } from '../fee-calculation/fee-calculation.service';
 
 @Injectable()
 export class OrderService extends TypeOrmCrudService<Order> {
@@ -27,7 +28,7 @@ export class OrderService extends TypeOrmCrudService<Order> {
     public readonly orderRepository: Repository<Order>,
     @InjectRepository(ProductInCart)
     public readonly productInCartRepository: Repository<ProductInCart>,
-    @InjectRepository(ProductInCart)
+    @InjectRepository(Cart)
     public readonly cartRepository: Repository<Cart>,
     @InjectRepository(OrderDescription)
     public readonly orderDescriptionRepository: Repository<OrderDescription>,
@@ -38,6 +39,7 @@ export class OrderService extends TypeOrmCrudService<Order> {
     private readonly schedulerRegistry: SchedulerRegistry,
     private readonly orderDescriptionService: OrderDescriptionService,
     private readonly deliveryInfoService: DeliveryInfoService,
+    private readonly feeCalculationService: FeeCalculationService,
   ) {
     super(orderRepository);
   }
@@ -175,33 +177,33 @@ export class OrderService extends TypeOrmCrudService<Order> {
 
   // calculate delivery fee for normal items
   async calculateNormalDeliveryFee(orderId: number) {
-    let normalSubtotal = 0;
-    let maxWeight = 0;
-    let normalDeliveryFee = 0;
-
     const items = await this.orderDescriptionRepository.find({
       where: {
         order_id: orderId,
       },
       relations: ['product'],
     });
+
+    // Debug log to see what items are included
+    console.log(`Debug Order ${orderId} Items:`);
+    items.forEach(i => console.log(` - Product ${i.product_id}: Val=${i.product.value}, Qty=${i.quantity}`));
+
     if (items.length === 0) {
       return {
-        normalSubtotal,
-        normalDeliveryFee,
+        normalSubtotal: 0,
+        normalDeliveryFee: 0,
       };
     }
 
-    for (const item of items) {
-      normalSubtotal += item.product.value * item.quantity;
-      if (item.product.weight * item.quantity > maxWeight) {
-        maxWeight = item.product.weight * item.quantity;
-      }
-    }
+    const normalSubtotal = items.reduce(
+      (sum, item) => sum + item.product.value * item.quantity,
+      0,
+    );
 
     const deliveryInfo = await this.deliveryInfoRepository.findOne({
       where: { order_id: orderId },
     });
+
     if (!deliveryInfo) {
       throw new NotFoundException({
         code: 'DELIVERY_INFO_NOT_FOUND',
@@ -209,24 +211,23 @@ export class OrderService extends TypeOrmCrudService<Order> {
       });
     }
 
-    if (['HN', 'HCM'].includes(deliveryInfo.province)) {
-      normalDeliveryFee = 22000;
-      if (maxWeight > 3) {
-        normalDeliveryFee += ((maxWeight - 3) / 0.5) * 2500;
-      }
-    } else {
-      normalDeliveryFee = 30000;
-      if (maxWeight > 0.5) {
-        normalDeliveryFee += ((maxWeight - 0.5) / 0.5) * 2500;
-      }
-    }
+    // Sử dụng FeeCalculationService với Strategy Pattern
+    const result = this.feeCalculationService.calculateFee({
+      items: items.map((item) => ({
+        product: {
+          weight: item.product.weight,
+          dimensions: item.product.dimensions,
+          value: item.product.value,
+        },
+        quantity: item.quantity,
+      })),
+      province: deliveryInfo.province,
+      subtotal: normalSubtotal,
+    });
 
-    if (normalSubtotal > 100000) {
-      normalDeliveryFee -= 25000;
-    }
     return {
       normalSubtotal,
-      normalDeliveryFee,
+      normalDeliveryFee: result.finalFee,
     };
   }
 
@@ -457,9 +458,9 @@ export class OrderService extends TypeOrmCrudService<Order> {
         averageOrderValue:
           pendingOrders.length > 0
             ? ordersWithDetails.reduce(
-                (sum, order) => sum + order.totalValue,
-                0,
-              ) / pendingOrders.length
+              (sum, order) => sum + order.totalValue,
+              0,
+            ) / pendingOrders.length
             : 0,
       },
     };
@@ -499,7 +500,70 @@ export class OrderService extends TypeOrmCrudService<Order> {
     };
   }
 
-  // payOrder() {
-  //   // empty cart after pay successfully
-  // }
+  async getOrdersByUserId(userId: number) {
+    console.log(`[OrderService] Fetching orders for userId: ${userId} (type: ${typeof userId})`);
+
+    // Find all carts belonging to this user
+    const carts = await this.cartRepository.find({
+      where: { customer_id: userId }
+    });
+
+    const cartIds = carts.map(c => c.cart_id);
+
+    // BACKWARD COMPATIBILITY / FE BUG FIX:
+    // The Frontend often uses user.id as cartId (e.g., ShoppingCart.tsx:47)
+    // If the actual cart assigned to the user has a different ID, the order 
+    // history based only on assigned carts will miss orders created with userId.
+    if (!cartIds.includes(userId)) {
+      cartIds.push(userId);
+    }
+
+    console.log(`[OrderService] Found final cart IDs to search for user ${userId}:`, cartIds);
+
+    if (cartIds.length === 0) {
+      return [];
+    }
+
+    console.log(`[OrderService] Querying orders for cartIds:`, cartIds);
+    const orders = await this.orderRepository.find({
+      where: {
+        cart_id: In(cartIds)
+      },
+      order: {
+        order_id: 'DESC',
+      },
+    });
+
+    console.log(`[OrderService] Found ${orders.length} orders:`, orders.map(o => o.order_id));
+
+    const ordersWithDetails = await Promise.all(
+      orders.map(async (order) => {
+        const orderItems = await this.orderDescriptionRepository.find({
+          where: { order_id: order.order_id },
+          relations: ['product'],
+        });
+
+        const deliveryInfo = await this.deliveryInfoRepository.findOne({
+          where: { order_id: order.order_id },
+        });
+
+        const paymentTransaction = await this.paymentTransactionRepository.findOne({
+          where: { order_id: order.order_id },
+        });
+
+        return {
+          ...order,
+          items: orderItems.map((item) => ({
+            product_name: item.product?.title || 'Unknown Product',
+            quantity: item.quantity,
+            price: item.product?.value || 0,
+          })),
+          deliveryInfo,
+          paymentTransaction,
+        };
+      }),
+    );
+
+    return ordersWithDetails;
+  }
 }

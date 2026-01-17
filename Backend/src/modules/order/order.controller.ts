@@ -7,6 +7,7 @@ import {
   Patch,
   Body,
   BadRequestException,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -43,7 +44,7 @@ export class OrderController {
     private readonly orderDescriptionService: OrderDescriptionService,
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
-  ) {}
+  ) { }
 
   // create a new order according to cartId; other fields will be filled later and no order_description related yet
   @Post('create')
@@ -51,12 +52,17 @@ export class OrderController {
     @Body('cart_id') cartId: number,
     @Body('product_ids') productIds: number[],
   ) {
+    console.log(`[OrderController] Creating order for cartId: ${cartId}, productIds:`, productIds);
     const order = await this.service.createOrder(cartId);
+    console.log(`[OrderController] Order created with ID: ${order.order_id}`);
+
     const orderDescriptions =
       await this.orderDescriptionService.createOrderDescription(
         order.order_id,
         productIds,
       );
+    console.log(`[OrderController] Order descriptions created.`);
+
     const checkProductAvailability = await this.service.checkProductAvailability(order.order_id);
     if (checkProductAvailability.success != true) {
       await this.orderDescriptionService.deleteProductInOrder(
@@ -128,30 +134,35 @@ export class OrderController {
   //   };
   // }
 
-  // // display invoice
-  // @Get('invoice/:order_id')
-  // async displayInvoice(@Param('order_id') orderId: number) {
-  //   return await this.service.displayInvoice(orderId);
-  // }
+  @Get('history/:userId')
+  async getOrderHistory(@Param('userId', ParseIntPipe) userId: number) {
+    return this.service.getOrdersByUserId(userId);
+  }
 
-  // @Patch('approve-reject/:order_id')
-  // async approveOrRejectOrder(
-  //   @Param('order_id') orderId: number,
-  //   @Body() dto: ApproveOrderDto,
-  // ) {
-  //   return this.service.approveOrRejectOrder(orderId, dto);
-  // }
+  // display invoice
+  @Get('invoice/:order_id')
+  async displayInvoice(@Param('order_id') orderId: number) {
+    return await this.service.displayInvoice(orderId);
+  }
 
-  // @Patch('update-status/:order_id')
-  // async updateOrderStatus(
-  //   @Param('order_id') orderId: number,
-  //   @Body() dto: UpdateOrderStatusDto,
-  // ) {
-  //   return this.service.updateOrderStatus(orderId, dto);
-  // }
+  @Patch('approve-reject/:order_id')
+  async approveOrRejectOrder(
+    @Param('order_id') orderId: number,
+    @Body() dto: ApproveOrderDto,
+  ) {
+    return this.service.approveOrRejectOrder(orderId, dto);
+  }
 
-  // @Get('pending-orders')
-  // async getPendingOrders() {
-  //   return this.service.getPendingOrders();
-  // }
+  @Patch('update-status/:order_id')
+  async updateOrderStatus(
+    @Param('order_id') orderId: number,
+    @Body() dto: UpdateOrderStatusDto,
+  ) {
+    return this.service.updateOrderStatus(orderId, dto);
+  }
+
+  @Get('pending-orders')
+  async getPendingOrders() {
+    return this.service.getPendingOrders();
+  }
 }

@@ -35,6 +35,7 @@ export class CartService extends TypeOrmCrudService<Cart> {
 
     const productInCarts = await this.productInCartRepository.find({
       where: { cart_id: cartId },
+      relations: ['product'],
     });
     if (productInCarts.length === 0) {
       return {

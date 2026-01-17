@@ -91,79 +91,80 @@ export const ProductDetail = ({ productId, onBack, onAddToCart }: ProductDetailP
   const renderTypeSpecificDetails = () => {
     switch (product.type) {
       case 'book':
-        if (!product.book) return null;
+        // Backend returns flat object with all book fields
+        if (!product.author) return null;
         return (
           <div className="space-y-3">
             <h3 className="font-semibold text-lg">Book Details</h3>
             <div className="grid grid-cols-2 gap-4">
-              <div><span className="font-medium">Author:</span> {product.book.author}</div>
-              <div><span className="font-medium">Publisher:</span> {product.book.publisher}</div>
-              <div><span className="font-medium">Genre:</span> {product.book.genre}</div>
-              <div><span className="font-medium">Language:</span> {product.book.language}</div>
-              <div><span className="font-medium">Cover Type:</span> {product.book.cover_type}</div>
-              <div><span className="font-medium">Pages:</span> {product.book.number_of_pages}</div>
+              <div><span className="font-medium">Author:</span> {product.author}</div>
+              <div><span className="font-medium">Publisher:</span> {product.publisher}</div>
+              <div><span className="font-medium">Genre:</span> {product.genre}</div>
+              <div><span className="font-medium">Language:</span> {product.language}</div>
+              <div><span className="font-medium">Cover Type:</span> {product.cover_type}</div>
+              <div><span className="font-medium">Pages:</span> {product.number_of_pages}</div>
               <div className="col-span-2">
-                <span className="font-medium">Publication Date:</span> {formatDate(product.book.publication_date)}
+                <span className="font-medium">Publication Date:</span> {formatDate(product.publication_date)}
               </div>
             </div>
           </div>
         );
 
       case 'cd':
-        if (!product.cd) return null;
+        if (!product.artist) return null;
         return (
           <div className="space-y-3">
             <h3 className="font-semibold text-lg">CD Details</h3>
             <div className="grid grid-cols-2 gap-4">
-              <div><span className="font-medium">Artist:</span> {product.cd.artist}</div>
-              <div><span className="font-medium">Genre:</span> {product.cd.genre}</div>
-              <div><span className="font-medium">Record Label:</span> {product.cd.record_label}</div>
-              <div><span className="font-medium">Release Date:</span> {formatDate(product.cd.release_date)}</div>
+              <div><span className="font-medium">Artist:</span> {product.artist}</div>
+              <div><span className="font-medium">Genre:</span> {product.genre}</div>
+              <div><span className="font-medium">Record Label:</span> {product.record_label}</div>
+              <div><span className="font-medium">Release Date:</span> {formatDate(product.release_date)}</div>
             </div>
             <div>
               <span className="font-medium">Tracklist:</span>
-              <p className="mt-1 text-sm text-gray-600">{product.cd.tracklist}</p>
+              <p className="mt-1 text-sm text-gray-600">{product.tracklist}</p>
             </div>
           </div>
         );
 
       case 'dvd':
-        if (!product.dvd) return null;
+        if (!product.director) return null;
         return (
           <div className="space-y-3">
             <h3 className="font-semibold text-lg">DVD Details</h3>
             <div className="grid grid-cols-2 gap-4">
-              <div><span className="font-medium">Director:</span> {product.dvd.director}</div>
-              <div><span className="font-medium">Studio:</span> {product.dvd.studio}</div>
-              <div><span className="font-medium">Genre:</span> {product.dvd.genre}</div>
-              <div><span className="font-medium">Runtime:</span> {product.dvd.runtime}</div>
-              <div><span className="font-medium">Language:</span> {product.dvd.language}</div>
-              <div><span className="font-medium">Subtitles:</span> {product.dvd.subtitles}</div>
-              <div><span className="font-medium">Disc Type:</span> {product.dvd.disc_type}</div>
-              <div><span className="font-medium">Release Date:</span> {formatDate(product.dvd.release_date)}</div>
+              <div><span className="font-medium">Director:</span> {product.director}</div>
+              <div><span className="font-medium">Studio:</span> {product.studio}</div>
+              <div><span className="font-medium">Genre:</span> {product.genre}</div>
+              <div><span className="font-medium">Runtime:</span> {product.runtime}</div>
+              <div><span className="font-medium">Language:</span> {product.language}</div>
+              <div><span className="font-medium">Subtitles:</span> {product.subtitles}</div>
+              <div><span className="font-medium">Disc Type:</span> {product.disc_type}</div>
+              <div><span className="font-medium">Release Date:</span> {formatDate(product.release_date)}</div>
             </div>
           </div>
         );
 
       case 'news':
-        if (!product.news) return null;
+        if (!product.editor_in_chief) return null;
         return (
           <div className="space-y-3">
             <h3 className="font-semibold text-lg">Newspaper Details</h3>
             <div className="grid grid-cols-2 gap-4">
-              <div><span className="font-medium">Editor-in-Chief:</span> {product.news.editor_in_chief}</div>
-              <div><span className="font-medium">Publisher:</span> {product.news.publisher}</div>
-              <div><span className="font-medium">Issue Number:</span> {product.news.issue_number}</div>
-              <div><span className="font-medium">Frequency:</span> {product.news.publication_frequency}</div>
-              <div><span className="font-medium">Language:</span> {product.news.language}</div>
-              <div><span className="font-medium">ISSN:</span> {product.news.issn || 'N/A'}</div>
+              <div><span className="font-medium">Editor-in-Chief:</span> {product.editor_in_chief}</div>
+              <div><span className="font-medium">Publisher:</span> {product.publisher}</div>
+              <div><span className="font-medium">Issue Number:</span> {product.issue_number}</div>
+              <div><span className="font-medium">Frequency:</span> {product.publication_frequency}</div>
+              <div><span className="font-medium">Language:</span> {product.language}</div>
+              <div><span className="font-medium">ISSN:</span> {product.issn || 'N/A'}</div>
               <div className="col-span-2">
-                <span className="font-medium">Publication Date:</span> {formatDate(product.news.publication_date)}
+                <span className="font-medium">Publication Date:</span> {formatDate(product.publication_date)}
               </div>
             </div>
             <div>
               <span className="font-medium">Sections:</span>
-              <p className="mt-1 text-sm text-gray-600">{product.news.sections}</p>
+              <p className="mt-1 text-sm text-gray-600">{product.sections}</p>
             </div>
           </div>
         );

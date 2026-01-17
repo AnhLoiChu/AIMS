@@ -3,9 +3,11 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Edit, Lock, Unlock, RotateCcw } from 'lucide-react';
+import { apiService } from '@/services/api';
 
 interface User {
   id: string;
@@ -20,68 +22,72 @@ interface User {
 export const UserManagement = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newUserData, setNewUserData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    password: ''
+  });
 
   useEffect(() => {
-    // Mock data
-    const mockUsers: User[] = [
-      {
-        id: '1',
-        name: 'Admin User',
-        email: 'admin@aims.com',
-        phone: '+1234567890',
-        roles: ['administrator', 'product_manager'],
-        is_disabled: false,
-        created_date: '2024-01-01'
-      },
-      {
-        id: '2',
-        name: 'Product Manager',
-        email: 'manager@aims.com',
-        phone: '+1234567891',
-        roles: ['product_manager'],
-        is_disabled: false,
-        created_date: '2024-01-02'
-      },
-      {
-        id: '3',
-        name: 'Customer User',
-        email: 'customer@aims.com',
-        phone: '+1234567892',
-        roles: ['customer'],
-        is_disabled: false,
-        created_date: '2024-01-03'
-      },
-      {
-        id: '4',
-        name: 'John Doe',
-        email: 'john@customer.com',
-        phone: '+1234567893',
-        roles: ['customer'],
-        is_disabled: true,
-        created_date: '2024-01-04'
-      },
-      {
-        id: '5',
-        name: 'Jane Smith',
-        email: 'jane@customer.com',
-        phone: '+1234567894',
-        roles: ['customer'],
-        is_disabled: false,
-        created_date: '2024-01-05'
-      }
-    ];
-    setUsers(mockUsers);
+    fetchUsers();
   }, []);
 
-  const handleToggleUserStatus = (userId: string) => {
-    setUsers(prev => prev.map(user =>
-      user.id === userId ? { ...user, is_disabled: !user.is_disabled } : user
-    ));
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await apiService.getManagers();
+      setUsers(data.map((u: any) => ({
+        id: u.user_id.toString(),
+        name: u.name,
+        email: u.email,
+        phone: u.phone,
+        roles: u.roles?.map((r: any) => r.name) || ['manager'],
+        is_disabled: u.is_disabled || false,
+        created_date: new Date(u.created_date || Date.now()).toISOString().split('T')[0]
+      })));
+    } catch (err: any) {
+      setError('Failed to load users');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleUserStatus = async (userId: string) => {
+    try {
+      const user = users.find(u => u.id === userId);
+      if (!user) return;
+      
+      await apiService.updateManager(parseInt(userId), {
+        is_disabled: !user.is_disabled
+      });
+      
+      await fetchUsers();
+    } catch (err: any) {
+      alert('Failed to update user status: ' + (err.message || 'Unknown error'));
+    }
   };
 
   const handleResetPassword = (userId: string) => {
     // In real app, this would send a reset email
     alert(`Password reset email sent to user ${userId}`);
+  };
+
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await apiService.createManager(newUserData);
+      await fetchUsers();
+      setShowAddModal(false);
+      setNewUserData({ name: '', email: '', phone: '', password: '' });
+    } catch (err: any) {
+      alert('Failed to create user: ' + (err.message || 'Unknown error'));
+    }
   };
 
   const filteredUsers = users.filter(user =>
@@ -98,11 +104,85 @@ export const UserManagement = () => {
     }
   };
 
+  if (loading) {
+    return <div className="flex justify-center items-center p-8">Loading users...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="text-red-600 p-4">
+        {error}
+        <Button onClick={fetchUsers} className="ml-4">Retry</Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {/* Add User Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Add New Manager</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleAddUser} className="space-y-4">
+                <div>
+                  <Label htmlFor="name">Name *</Label>
+                  <Input
+                    id="name"
+                    value={newUserData.name}
+                    onChange={(e) => setNewUserData(prev => ({ ...prev, name: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={newUserData.email}
+                    onChange={(e) => setNewUserData(prev => ({ ...prev, email: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="phone">Phone *</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={newUserData.phone}
+                    onChange={(e) => setNewUserData(prev => ({ ...prev, phone: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="password">Password *</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={newUserData.password}
+                    onChange={(e) => setNewUserData(prev => ({ ...prev, password: e.target.value }))}
+                    required
+                    minLength={6}
+                  />
+                </div>
+                <div className="flex space-x-2">
+                  <Button type="submit" className="bg-blue-600 hover:bg-blue-700">Create</Button>
+                  <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">User Management</h2>
-        <Button className="bg-blue-600 hover:bg-blue-700">
+        <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => setShowAddModal(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Add User
         </Button>
