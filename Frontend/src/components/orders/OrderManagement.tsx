@@ -1,35 +1,35 @@
-import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Check, X } from 'lucide-react';
-import { apiService } from '@/services/api';
+import { Button } from '@/components/ui/button';
+import { X, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import { apiService } from '@/services/api';
 
 interface Order {
-  order_id: string;
   subtotal: number;
-  delivery_fee: number;
+  order_id: string;
   status: string;
+  delivery_fee: number;
   accept_date: string | null;
-  deliveryInfo: {
-    recipient_name: string;
-    email: string;
-    phone: string;
-    address: string;
-    province: string;
-  };
   orderItems: Array<{
-    product: { title: string };
     quantity: number;
+    product: { title: string };
     product_id: number;
   }>;
+  deliveryInfo: {
+    email: string;
+    recipient_name: string;
+    address: string;
+    phone: string;
+    province: string;
+  };
   paymentTransaction: any;
 }
 
 export const OrderManagement = () => {
-  const [orders, setOrders] = useState<Order[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const ordersPerPage = 30;
 
@@ -40,8 +40,8 @@ export const OrderManagement = () => {
       // Handle nested response from Backend
       setOrders(response.orders || []);
     } catch (error) {
-      console.error("Failed to fetch pending orders:", error);
       toast.error("Failed to fetch pending orders");
+      console.error("Failed to fetch pending orders:", error);
     } finally {
       setIsLoading(false);
     }
@@ -51,27 +51,37 @@ export const OrderManagement = () => {
     fetchOrders();
   }, []);
 
-  const handleApproveOrder = async (orderId: string) => {
-    try {
-      await apiService.approveOrder(orderId, 'Shipping');
-      toast.success(`Order #${orderId} approved`);
-      fetchOrders(); // Refresh list
-    } catch (error: any) {
-      console.error("Failed to approve order:", error);
-      // Attempt to get backend error message
-      const message = error.message || "Failed to approve order";
-      toast.error(message);
-    }
-  };
-
   const handleRejectOrder = async (orderId: string) => {
     try {
       await apiService.approveOrder(orderId, 'Cancelled');
       toast.success(`Order #${orderId} rejected`);
       fetchOrders(); // Refresh list
     } catch (error) {
-      console.error("Failed to reject order:", error);
       toast.error("Failed to reject order");
+      console.error("Failed to reject order:", error);
+    }
+  };
+
+  const handleApproveOrder = async (orderId: string) => {
+    try {
+      await apiService.approveOrder(orderId, 'Shipping');
+      toast.success(`Order #${orderId} approved`);
+      fetchOrders(); // Refresh list
+    } catch (error: any) {
+      // Attempt to get backend error message
+      const message = error.message || "Failed to approve order";
+      toast.error(message);
+      console.error("Failed to approve order:", error);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Shipping': return 'bg-green-100 text-green-800';
+      case 'Waiting for Approval': return 'bg-yellow-100 text-yellow-800';
+      case 'Cancelled by Customer': return 'bg-red-50 text-red-600 border border-red-200';
+      case 'Cancelled': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -79,16 +89,6 @@ export const OrderManagement = () => {
     (currentPage - 1) * ordersPerPage,
     currentPage * ordersPerPage
   );
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Waiting for Approval': return 'bg-yellow-100 text-yellow-800';
-      case 'Shipping': return 'bg-green-100 text-green-800';
-      case 'Cancelled': return 'bg-red-100 text-red-800';
-      case 'Cancelled by Customer': return 'bg-red-50 text-red-600 border border-red-200';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
 
   if (isLoading) {
     return <div className="text-center py-12">Loading orders...</div>;

@@ -1,52 +1,102 @@
 import {
-  BadRequestException,
   Injectable,
+  BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
-import { Order } from './entities/order.entity';
+import { InjectRepository } from '@nestjs/typeorm';
 import { TypeOrmCrudService } from '@dataui/crud-typeorm';
-import { ProductInCart } from '../product-in-cart/entities/product-in-cart.entity';
+import { Order } from './entities/order.entity';
 import { Cart } from '../cart/entities/cart.entity';
-import { OrderDescription } from '../order-description/entities/order-description.entity';
+import { ProductInCart } from '../product-in-cart/entities/product-in-cart.entity';
 import { PaymentTransaction } from '../payment-transaction/entities/payment-transaction.entity';
-import { DeliveryInfo } from '../delivery-info/entities/delivery-info.entity';
+import { OrderDescription } from '../order-description/entities/order-description.entity';
 import { Product } from '../product/entities/product.entity';
-import { ApproveOrderDto } from './dto/approve-order.dto';
+import { DeliveryInfo } from '../delivery-info/entities/delivery-info.entity';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
+import { ApproveOrderDto } from './dto/approve-order.dto';
 import { OrderStatus } from './dto/order-status.enum';
-import { SchedulerRegistry } from '@nestjs/schedule';
 import { OrderDescriptionService } from '../order-description/order-description.service';
-import { DeliveryInfoService } from '../delivery-info/delivery-info.service';
+import { SchedulerRegistry } from '@nestjs/schedule';
 import { CreateDeliveryInfoDto } from '../delivery-info/dto/create-delivery-info.dto';
-import { FeeCalculationService } from '../fee-calculation/fee-calculation.service';
+import { DeliveryInfoService } from '../delivery-info/delivery-info.service';
 import { MailService } from '../mail/mail.service';
+import { FeeCalculationService } from '../fee-calculation/fee-calculation.service';
 
 @Injectable()
 export class OrderService extends TypeOrmCrudService<Order> {
   constructor(
     @InjectRepository(Order)
     public readonly orderRepository: Repository<Order>,
-    @InjectRepository(ProductInCart)
-    public readonly productInCartRepository: Repository<ProductInCart>,
     @InjectRepository(Cart)
     public readonly cartRepository: Repository<Cart>,
-    @InjectRepository(OrderDescription)
-    public readonly orderDescriptionRepository: Repository<OrderDescription>,
+    @InjectRepository(ProductInCart)
+    public readonly productInCartRepository: Repository<ProductInCart>,
     @InjectRepository(PaymentTransaction)
     public readonly paymentTransactionRepository: Repository<PaymentTransaction>,
+    @InjectRepository(OrderDescription)
+    public readonly orderDescriptionRepository: Repository<OrderDescription>,
     @InjectRepository(DeliveryInfo)
     public readonly deliveryInfoRepository: Repository<DeliveryInfo>,
     @InjectRepository(Product)
     public readonly productRepository: Repository<Product>,
-    private readonly schedulerRegistry: SchedulerRegistry,
     private readonly orderDescriptionService: OrderDescriptionService,
+    private readonly schedulerRegistry: SchedulerRegistry,
+    private readonly mailService: MailService,
     private readonly deliveryInfoService: DeliveryInfoService,
     private readonly feeCalculationService: FeeCalculationService,
-    private readonly mailService: MailService,
   ) {
     super(orderRepository);
+  }
+
+  // check product availability in database
+  async checkProductAvailability(orderId: number) {
+    // all product_in_cart
+    const orderDescription = await this.orderDescriptionRepository.find({
+      where: { order_id: orderId },
+      relations: ['product'], // allow load Product entity to access available quantity
+    });
+
+    if (orderDescription.length === 0) {
+      throw new BadRequestException({
+        code: 'ORDER_DESCRIPTION_NOT_FOUND',
+        message: `No order description matching ${orderId}`,
+      });
+    }
+
+    const insufficientProducts: {
+      product_id: number;
+      available_quantity: number;
+      request_quantity: number;
+      message: string;
+    }[] = [];
+    for (const item of orderDescription) {
+      const request = item.quantity;
+      const available = item.product.quantity;
+      const productId = item.product.product_id;
+
+      if (request > available) {
+        insufficientProducts.push({
+          product_id: productId,
+          available_quantity: available,
+          request_quantity: request,
+          message: `Product ID ${productId} is insufficient`,
+        });
+      }
+    }
+
+    if (insufficientProducts.length > 0) {
+      throw new BadRequestException({
+        code: 'PRODUCTS_INSUFFICIENT',
+        message: 'Some products do not have enough stock',
+        insufficient_products: insufficientProducts,
+      });
+    }
+
+    return {
+      success: true,
+      message: `All products are sufficient for order ID ${orderId}`,
+    };
   }
 
   // create a new order according to cartId; other fields will be filled later and no order_description related yet
@@ -64,10 +114,10 @@ export class OrderService extends TypeOrmCrudService<Order> {
       // order_id: newOrderId, // Remove this if order_id is auto-generated
       cart_id: cartId,
       cart: cart,
-      subtotal: 0,
       status: OrderStatus.PLACING,
-      accept_date: null,
+      subtotal: 0,
       delivery_fee: 0,
+      accept_date: null,
     });
     const savedOrder = await this.orderRepository.save(newOrder);
 
@@ -99,56 +149,6 @@ export class OrderService extends TypeOrmCrudService<Order> {
     return savedOrder;
   }
 
-  // check product availability in database
-  async checkProductAvailability(orderId: number) {
-    // all product_in_cart
-    const orderDescription = await this.orderDescriptionRepository.find({
-      where: { order_id: orderId },
-      relations: ['product'], // allow load Product entity to access available quantity
-    });
-
-    if (orderDescription.length === 0) {
-      throw new BadRequestException({
-        code: 'ORDER_DESCRIPTION_NOT_FOUND',
-        message: `No order description matching ${orderId}`,
-      });
-    }
-
-    const insufficientProducts: {
-      product_id: number;
-      request_quantity: number;
-      available_quantity: number;
-      message: string;
-    }[] = [];
-    for (const item of orderDescription) {
-      const available = item.product.quantity;
-      const request = item.quantity;
-      const productId = item.product.product_id;
-
-      if (request > available) {
-        insufficientProducts.push({
-          product_id: productId,
-          request_quantity: request,
-          available_quantity: available,
-          message: `Product ID ${productId} is insufficient`,
-        });
-      }
-    }
-
-    if (insufficientProducts.length > 0) {
-      throw new BadRequestException({
-        code: 'PRODUCTS_INSUFFICIENT',
-        message: 'Some products do not have enough stock',
-        insufficient_products: insufficientProducts,
-      });
-    }
-
-    return {
-      success: true,
-      message: `All products are sufficient for order ID ${orderId}`,
-    };
-  }
-
   // display order with transaction
   async getOrderWithTransaction(orderId: number) {
     const order = await this.orderRepository.findOne({
@@ -175,8 +175,8 @@ export class OrderService extends TypeOrmCrudService<Order> {
 
     return {
       success: true,
-      data: order,
       paymentTransaction,
+      data: order,
     };
   }
 
@@ -195,8 +195,8 @@ export class OrderService extends TypeOrmCrudService<Order> {
 
     if (items.length === 0) {
       return {
-        normalSubtotal: 0,
         normalDeliveryFee: 0,
+        normalSubtotal: 0,
       };
     }
 
@@ -220,19 +220,19 @@ export class OrderService extends TypeOrmCrudService<Order> {
     const result = this.feeCalculationService.calculateFee({
       items: items.map((item) => ({
         product: {
-          weight: item.product.weight,
           dimensions: item.product.dimensions,
+          weight: item.product.weight,
           value: item.product.current_price,
         },
         quantity: item.quantity,
       })),
-      province: deliveryInfo.province,
       subtotal: normalSubtotal,
+      province: deliveryInfo.province,
     });
 
     return {
-      normalSubtotal,
       normalDeliveryFee: result.finalFee,
+      normalSubtotal,
     };
   }
 
@@ -270,8 +270,8 @@ export class OrderService extends TypeOrmCrudService<Order> {
       const subtotal = desc.quantity * desc.product.current_price;
       return {
         product_id: desc.product_id,
-        price: desc.product.current_price,
         quantity: desc.quantity,
+        price: desc.product.current_price,
         subtotal,
       };
     });
@@ -283,11 +283,11 @@ export class OrderService extends TypeOrmCrudService<Order> {
 
     return {
       items,
-      subtotalSum,
       vat,
+      subtotalSum,
       total,
-      delivery_fee: order.delivery_fee,
       allTotal: allTotal,
+      delivery_fee: order.delivery_fee,
     };
   }
 
@@ -325,8 +325,8 @@ export class OrderService extends TypeOrmCrudService<Order> {
         });
       } else {
         return {
-          success: true,
           message: `Order ID ${orderId} removed successfully`,
+          success: true,
         };
       }
     } catch {
@@ -335,6 +335,16 @@ export class OrderService extends TypeOrmCrudService<Order> {
         message: `Failed to remove order ID ${orderId}`,
       });
     }
+  }
+
+  async updateOrderStatus(orderId: number, dto: UpdateOrderStatusDto) {
+    const order = await this.orderRepository.findOne({
+      where: { order_id: orderId },
+    });
+    if (!order) throw new NotFoundException('Order not found');
+    order.status = dto.status;
+    await this.orderRepository.save(order);
+    return { message: `Order ${orderId} status updated to ${dto.status}` };
   }
 
   async approveOrRejectOrder(orderId: number, dto: ApproveOrderDto) {
@@ -355,8 +365,8 @@ export class OrderService extends TypeOrmCrudService<Order> {
       }
 
       if (dto.status === OrderStatus.ACCEPTED) {
-        order.status = OrderStatus.ACCEPTED;
         order.accept_date = new Date();
+        order.status = OrderStatus.ACCEPTED;
 
         // REDUCE STOCK when accepted
         console.log(`[OrderService] Decreasing stock for order ID ${orderId}`);
@@ -379,8 +389,8 @@ export class OrderService extends TypeOrmCrudService<Order> {
           }
         }
       } else if (dto.status === OrderStatus.REJECTED) {
-        order.status = OrderStatus.REJECTED;
         order.accept_date = new Date();
+        order.status = OrderStatus.REJECTED;
       } else {
         throw new BadRequestException('Invalid status for approval/rejection');
       }
@@ -397,16 +407,6 @@ export class OrderService extends TypeOrmCrudService<Order> {
     }
   }
 
-  async updateOrderStatus(orderId: number, dto: UpdateOrderStatusDto) {
-    const order = await this.orderRepository.findOne({
-      where: { order_id: orderId },
-    });
-    if (!order) throw new NotFoundException('Order not found');
-    order.status = dto.status;
-    await this.orderRepository.save(order);
-    return { message: `Order ${orderId} status updated to ${dto.status}` };
-  }
-
   /**
    * Get 30 pending orders for manager approval
    */
@@ -415,10 +415,10 @@ export class OrderService extends TypeOrmCrudService<Order> {
       where: {
         status: OrderStatus.PENDING, // "Waiting for Approval"
       },
-      relations: ['cart'], // Include cart info
       order: {
         order_id: 'ASC', // Oldest orders first
       },
+      relations: ['cart'], // Include cart info
       take: 30, // Limit to 30 orders
     });
 
@@ -444,11 +444,11 @@ export class OrderService extends TypeOrmCrudService<Order> {
 
         return {
           ...order,
-          orderItems,
           deliveryInfo,
+          orderItems,
           paymentTransaction,
-          totalItems: orderItems.length,
           totalValue: order.subtotal + order.delivery_fee,
+          totalItems: orderItems.length,
         };
       }),
     );
@@ -458,18 +458,18 @@ export class OrderService extends TypeOrmCrudService<Order> {
       `📋 PENDING ORDERS DISPLAY - ${new Date().toLocaleDateString()}`,
     );
     console.log('===============================================');
-    console.log(`📊 Total pending orders: ${pendingOrders.length}`);
     console.log(`🔍 Showing top 30 pending orders`);
+    console.log(`📊 Total pending orders: ${pendingOrders.length}`);
     console.log('===============================================');
 
     // Log each order summary to console
     ordersWithDetails.forEach((order, index) => {
       console.log(`${index + 1}. Order #${order.order_id}`);
-      console.log(`   💰 Subtotal: ${order.subtotal.toFixed(2)} VND`);
       console.log(`   🚚 Delivery Fee: ${order.delivery_fee.toFixed(2)} VND`);
+      console.log(`   💰 Subtotal: ${order.subtotal.toFixed(2)} VND`);
       console.log(`   💳 Total Value: ${order.totalValue.toFixed(2)} VND`);
-      console.log(`   📦 Items: ${order.totalItems}`);
       console.log(`   📍 Province: ${order.deliveryInfo?.province || 'N/A'}`);
+      console.log(`   📦 Items: ${order.totalItems}`);
       console.log(`   🏪 Address: ${order.deliveryInfo?.address || 'N/A'}`);
       console.log(
         `   💵 Payment Status: ${order.paymentTransaction ? '✅ Paid' : '⏳ Pending'}`,
@@ -481,17 +481,17 @@ export class OrderService extends TypeOrmCrudService<Order> {
 
     return {
       message: `Retrieved ${pendingOrders.length} pending orders`,
-      totalPendingOrders: pendingOrders.length,
       orders: ordersWithDetails,
+      totalPendingOrders: pendingOrders.length,
       summary: {
         totalOrders: pendingOrders.length,
+        paidOrders: ordersWithDetails.filter(
+          (order) => order.paymentTransaction,
+        ).length,
         totalValue: ordersWithDetails.reduce(
           (sum, order) => sum + order.totalValue,
           0,
         ),
-        paidOrders: ordersWithDetails.filter(
-          (order) => order.paymentTransaction,
-        ).length,
         unpaidOrders: ordersWithDetails.filter(
           (order) => !order.paymentTransaction,
         ).length,
@@ -507,15 +507,15 @@ export class OrderService extends TypeOrmCrudService<Order> {
   }
 
   async calculateTotalDeliveryFee(orderId: number): Promise<{
-    message: string;
     subtotal: number;
+    message: string;
     deliveryFee: number;
   }> {
-    const { normalSubtotal, normalDeliveryFee } =
+    const { normalDeliveryFee, normalSubtotal } =
       await this.calculateNormalDeliveryFee(orderId);
 
-    const subtotal = normalSubtotal * 1000;
     const deliveryFee = normalDeliveryFee;
+    const subtotal = normalSubtotal * 1000;
 
     const order = await this.orderRepository.findOne({
       where: { order_id: orderId },
@@ -535,8 +535,8 @@ export class OrderService extends TypeOrmCrudService<Order> {
     await this.orderRepository.save(order);
 
     return {
-      message: `Order ${orderId}: delivery fee and subtotal updated successfully`,
       subtotal,
+      message: `Order ${orderId}: delivery fee and subtotal updated successfully`,
       deliveryFee,
     };
   }
@@ -579,13 +579,13 @@ export class OrderService extends TypeOrmCrudService<Order> {
 
     const ordersWithDetails = await Promise.all(
       orders.map(async (order) => {
+        const deliveryInfo = await this.deliveryInfoRepository.findOne({
+          where: { order_id: order.order_id },
+        });
+
         const orderItems = await this.orderDescriptionRepository.find({
           where: { order_id: order.order_id },
           relations: ['product'],
-        });
-
-        const deliveryInfo = await this.deliveryInfoRepository.findOne({
-          where: { order_id: order.order_id },
         });
 
         const paymentTransaction = await this.paymentTransactionRepository.findOne({
@@ -594,12 +594,12 @@ export class OrderService extends TypeOrmCrudService<Order> {
 
         return {
           ...order,
+          deliveryInfo,
           items: orderItems.map((item) => ({
             product_name: item.product?.title || 'Unknown Product',
-            quantity: item.quantity,
             price: item.product?.current_price || 0,
+            quantity: item.quantity,
           })),
-          deliveryInfo,
           paymentTransaction,
         };
       }),
@@ -621,8 +621,8 @@ export class OrderService extends TypeOrmCrudService<Order> {
     // Security check: Verify order belongs to the user
     console.log(`[OrderService] Attempting to cancel order ${orderId} for userId ${userId}. Order owner: ${order.cart.customer_id}, cart_id: ${order.cart_id}, status: ${order.status}`);
 
-    const isOfficialOwner = Number(order.cart.customer_id) === Number(userId);
     const isCompatibilityOwner = Number(order.cart_id) === Number(userId);
+    const isOfficialOwner = Number(order.cart.customer_id) === Number(userId);
 
     if (!isOfficialOwner && !isCompatibilityOwner) {
       console.error(`[OrderService] Unauthorized cancel attempt: User ${userId} is neither official owner (${order.cart.customer_id}) nor compatibility owner (${order.cart_id})`);
@@ -661,8 +661,8 @@ export class OrderService extends TypeOrmCrudService<Order> {
       }
 
       return {
+        status: order.status,
         message: `Đã hủy đơn hàng #${orderId} thành công.`,
-        status: order.status
       };
     } catch (err) {
       await queryRunner.rollbackTransaction();

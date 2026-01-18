@@ -1,11 +1,11 @@
-import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { OrderStatus } from './order-status.enum';
+import { IsOptional, IsEnum, IsString } from 'class-validator';
 
 export class ApproveOrderDto {
   @IsEnum(OrderStatus)
   status: OrderStatus.ACCEPTED | OrderStatus.REJECTED;
 
-  @IsOptional()
   @IsString()
+  @IsOptional()
   rejection_reason?: string;
 }

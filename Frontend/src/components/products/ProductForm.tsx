@@ -1,61 +1,65 @@
 
-import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
 interface ProductFormProps {
-  product?: any;
   onSave: (product: any) => void;
+  product?: any;
   onCancel: () => void;
 }
 
-export const ProductForm = ({ product, onSave, onCancel }: ProductFormProps) => {
+export const ProductForm = ({ onSave, product, onCancel }: ProductFormProps) => {
   const [formData, setFormData] = useState({
-    title: product?.title || '',
     category: product?.category || '',
-    value: product?.value || '',
+    title: product?.title || '',
     current_price: product?.current_price || '',
-    quantity: product?.quantity || '',
+    value: product?.value || '',
     weight: product?.weight || '1.0',
+    quantity: product?.quantity || '',
     dimensions: product?.dimensions || '10x10x10',
     // Book specific
-    author: product?.author || '',
     cover_type: product?.cover_type || '',
-    publisher: product?.publisher || '',
+    author: product?.author || '',
     publication_date: product?.publication_date || '',
-    number_of_pages: product?.number_of_pages || '',
+    publisher: product?.publisher || '',
     language: product?.language || '',
+    number_of_pages: product?.number_of_pages || '',
     genre: product?.genre || '',
     // CD specific
-    artist: product?.artist || '',
     record_label: product?.record_label || '',
-    tracklist: product?.tracklist || '',
+    artist: product?.artist || '',
     release_date: product?.release_date || '',
+    tracklist: product?.tracklist || '',
     // DVD specific
-    director: product?.director || '',
     runtime: product?.runtime || '',
-    studio: product?.studio || '',
+    director: product?.director || '',
     disc_type: product?.disc_type || '',
+    studio: product?.studio || '',
     subtitles: product?.subtitles || '',
     // News specific
-    editor_in_chief: product?.editor_in_chief || '',
     issue_number: product?.issue_number || '',
-    publication_frequency: product?.publication_frequency || '',
+    editor_in_chief: product?.editor_in_chief || '',
     issn: product?.issn || '',
+    publication_frequency: product?.publication_frequency || '',
     sections: product?.sections || ''
   });
 
+  const updateField = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate price constraints
     const value = parseFloat(formData.value);
     const price = parseFloat(formData.current_price);
-    
+
     if (price < value * 0.3 || price > value * 1.5) {
       alert('Price must be between 30% and 150% of the product value');
       return;
@@ -63,89 +67,16 @@ export const ProductForm = ({ product, onSave, onCancel }: ProductFormProps) => 
 
     onSave({
       ...formData,
-      value: parseFloat(formData.value),
       current_price: parseFloat(formData.current_price),
-      quantity: parseInt(formData.quantity),
+      value: parseFloat(formData.value),
       weight: parseFloat(formData.weight),
+      quantity: parseInt(formData.quantity),
       dimensions: formData.dimensions
     });
   };
 
-  const updateField = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
   const renderCategorySpecificFields = () => {
     switch (formData.category) {
-      case 'book':
-        return (
-          <>
-            <div>
-              <Label htmlFor="author">Author *</Label>
-              <Input
-                id="author"
-                value={formData.author}
-                onChange={(e) => updateField('author', e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="cover_type">Cover Type</Label>
-              <Select value={formData.cover_type} onValueChange={(value) => updateField('cover_type', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select cover type" />
-                </SelectTrigger>
-                <SelectContent className="bg-white z-50">
-                  <SelectItem value="paperback">Paperback</SelectItem>
-                  <SelectItem value="hardcover">Hardcover</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="publisher">Publisher</Label>
-              <Input
-                id="publisher"
-                value={formData.publisher}
-                onChange={(e) => updateField('publisher', e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="publication_date">Publication Date *</Label>
-              <Input
-                id="publication_date"
-                type="date"
-                value={formData.publication_date}
-                onChange={(e) => updateField('publication_date', e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="number_of_pages">Number of Pages</Label>
-              <Input
-                id="number_of_pages"
-                type="number"
-                value={formData.number_of_pages}
-                onChange={(e) => updateField('number_of_pages', e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="language">Language</Label>
-              <Input
-                id="language"
-                value={formData.language}
-                onChange={(e) => updateField('language', e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="genre">Genre</Label>
-              <Input
-                id="genre"
-                value={formData.genre}
-                onChange={(e) => updateField('genre', e.target.value)}
-              />
-            </div>
-          </>
-        );
       case 'cd':
         return (
           <>
@@ -195,17 +126,29 @@ export const ProductForm = ({ product, onSave, onCancel }: ProductFormProps) => 
             </div>
           </>
         );
-      case 'news':
+      case 'book':
         return (
           <>
             <div>
-              <Label htmlFor="editor_in_chief">Editor-in-Chief *</Label>
+              <Label htmlFor="author">Author *</Label>
               <Input
-                id="editor_in_chief"
-                value={formData.editor_in_chief}
-                onChange={(e) => updateField('editor_in_chief', e.target.value)}
+                id="author"
+                value={formData.author}
+                onChange={(e) => updateField('author', e.target.value)}
                 required
               />
+            </div>
+            <div>
+              <Label htmlFor="cover_type">Cover Type</Label>
+              <Select value={formData.cover_type} onValueChange={(value) => updateField('cover_type', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select cover type" />
+                </SelectTrigger>
+                <SelectContent className="bg-white z-50">
+                  <SelectItem value="hardcover">Hardcover</SelectItem>
+                  <SelectItem value="paperback">Paperback</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="publisher">Publisher</Label>
@@ -216,33 +159,22 @@ export const ProductForm = ({ product, onSave, onCancel }: ProductFormProps) => 
               />
             </div>
             <div>
-              <Label htmlFor="issue_number">Issue Number</Label>
+              <Label htmlFor="publication_date">Publication Date *</Label>
               <Input
-                id="issue_number"
-                value={formData.issue_number}
-                onChange={(e) => updateField('issue_number', e.target.value)}
+                id="publication_date"
+                type="date"
+                value={formData.publication_date}
+                onChange={(e) => updateField('publication_date', e.target.value)}
+                required
               />
             </div>
             <div>
-              <Label htmlFor="publication_frequency">Publication Frequency</Label>
-              <Select value={formData.publication_frequency} onValueChange={(value) => updateField('publication_frequency', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select frequency" />
-                </SelectTrigger>
-                <SelectContent className="bg-white z-50">
-                  <SelectItem value="daily">Daily</SelectItem>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                  <SelectItem value="quarterly">Quarterly</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="issn">ISSN</Label>
+              <Label htmlFor="number_of_pages">Number of Pages</Label>
               <Input
-                id="issn"
-                value={formData.issn}
-                onChange={(e) => updateField('issn', e.target.value)}
+                id="number_of_pages"
+                type="number"
+                value={formData.number_of_pages}
+                onChange={(e) => updateField('number_of_pages', e.target.value)}
               />
             </div>
             <div>
@@ -254,22 +186,11 @@ export const ProductForm = ({ product, onSave, onCancel }: ProductFormProps) => 
               />
             </div>
             <div>
-              <Label htmlFor="sections">Sections</Label>
-              <Textarea
-                id="sections"
-                value={formData.sections}
-                onChange={(e) => updateField('sections', e.target.value)}
-                placeholder="Enter sections (comma separated)"
-              />
-            </div>
-            <div>
-              <Label htmlFor="publication_date">Publication Date *</Label>
+              <Label htmlFor="genre">Genre</Label>
               <Input
-                id="publication_date"
-                type="date"
-                value={formData.publication_date}
-                onChange={(e) => updateField('publication_date', e.target.value)}
-                required
+                id="genre"
+                value={formData.genre}
+                onChange={(e) => updateField('genre', e.target.value)}
               />
             </div>
           </>
@@ -292,9 +213,9 @@ export const ProductForm = ({ product, onSave, onCancel }: ProductFormProps) => 
                   <SelectValue placeholder="Select disc type" />
                 </SelectTrigger>
                 <SelectContent className="bg-white z-50">
+                  <SelectItem value="standard">Standard DVD</SelectItem>
                   <SelectItem value="blu-ray">Blu-ray</SelectItem>
                   <SelectItem value="hd-dvd">HD-DVD</SelectItem>
-                  <SelectItem value="standard">Standard DVD</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -351,6 +272,85 @@ export const ProductForm = ({ product, onSave, onCancel }: ProductFormProps) => 
             </div>
           </>
         );
+      case 'news':
+        return (
+          <>
+            <div>
+              <Label htmlFor="editor_in_chief">Editor-in-Chief *</Label>
+              <Input
+                id="editor_in_chief"
+                value={formData.editor_in_chief}
+                onChange={(e) => updateField('editor_in_chief', e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="publisher">Publisher</Label>
+              <Input
+                id="publisher"
+                value={formData.publisher}
+                onChange={(e) => updateField('publisher', e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="issue_number">Issue Number</Label>
+              <Input
+                id="issue_number"
+                value={formData.issue_number}
+                onChange={(e) => updateField('issue_number', e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="publication_frequency">Publication Frequency</Label>
+              <Select value={formData.publication_frequency} onValueChange={(value) => updateField('publication_frequency', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select frequency" />
+                </SelectTrigger>
+                <SelectContent className="bg-white z-50">
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="quarterly">Quarterly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="issn">ISSN</Label>
+              <Input
+                id="issn"
+                value={formData.issn}
+                onChange={(e) => updateField('issn', e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="language">Language</Label>
+              <Input
+                id="language"
+                value={formData.language}
+                onChange={(e) => updateField('language', e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="sections">Sections</Label>
+              <Textarea
+                id="sections"
+                value={formData.sections}
+                onChange={(e) => updateField('sections', e.target.value)}
+                placeholder="Enter sections (comma separated)"
+              />
+            </div>
+            <div>
+              <Label htmlFor="publication_date">Publication Date *</Label>
+              <Input
+                id="publication_date"
+                type="date"
+                value={formData.publication_date}
+                onChange={(e) => updateField('publication_date', e.target.value)}
+                required
+              />
+            </div>
+          </>
+        );
       default:
         return null;
     }
@@ -380,10 +380,10 @@ export const ProductForm = ({ product, onSave, onCancel }: ProductFormProps) => 
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent className="bg-white z-50">
-                  <SelectItem value="book">Book</SelectItem>
                   <SelectItem value="cd">CD</SelectItem>
-                  <SelectItem value="news">Newspaper</SelectItem>
+                  <SelectItem value="book">Book</SelectItem>
                   <SelectItem value="dvd">DVD</SelectItem>
+                  <SelectItem value="news">Newspaper</SelectItem>
                 </SelectContent>
               </Select>
             </div>

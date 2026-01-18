@@ -1,26 +1,26 @@
 import {
+  Param,
   Controller,
   Get,
-  NotFoundException,
-  Param,
   Post,
-  Patch,
+  NotFoundException,
   Body,
-  BadRequestException,
+  Patch,
   ParseIntPipe,
+  BadRequestException,
 } from '@nestjs/common';
-import { OrderService } from './order.service';
-import { CreateOrderDto } from './dto/create-order.dto';
-import { UpdateOrderDto } from './dto/update-order.dto';
-import { Crud, CrudController } from '@dataui/crud';
-import { Order } from './entities/order.entity';
-import { InjectRepository } from '@nestjs/typeorm';
-import { CartService } from '../cart/cart.service';
-import { OrderDescription } from '../order-description/entities/order-description.entity';
-import { OrderDescriptionService } from '../order-description/order-description.service';
 import { Repository } from 'typeorm';
-import { ApproveOrderDto } from './dto/approve-order.dto';
+import { OrderService } from './order.service';
+import { UpdateOrderDto } from './dto/update-order.dto';
+import { CreateOrderDto } from './dto/create-order.dto';
+import { Order } from './entities/order.entity';
+import { Crud, CrudController } from '@dataui/crud';
+import { CartService } from '../cart/cart.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { OrderDescriptionService } from '../order-description/order-description.service';
+import { OrderDescription } from '../order-description/entities/order-description.entity';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
+import { ApproveOrderDto } from './dto/approve-order.dto';
 import { CreateDeliveryInfoDto } from '../delivery-info/dto/create-delivery-info.dto';
 
 // @Crud({
@@ -40,11 +40,40 @@ import { CreateDeliveryInfoDto } from '../delivery-info/dto/create-delivery-info
 @Controller('order')
 export class OrderController {
   constructor(
-    public readonly service: OrderService,
     private readonly orderDescriptionService: OrderDescriptionService,
+    public readonly service: OrderService,
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
   ) { }
+
+  @Get('pending-orders')
+  async getPendingOrders() {
+    return this.service.getPendingOrders();
+  }
+
+  @Get('check-product-availability/:order_id')
+  // check if product is available for given cartId
+  async checkProductAvailability(@Param('order_id') orderId: number) {
+    const order = await this.service.findOne({ where: { order_id: orderId } });
+    if (!order) {
+      throw new NotFoundException({
+        code: 'ORDER_NOT_FOUND',
+        message: `Order ${orderId} not found`,
+      });
+    }
+    return await this.service.checkProductAvailability(orderId);
+  }
+
+  // display invoice
+  @Get('invoice/:order_id')
+  async displayInvoice(@Param('order_id') orderId: number) {
+    return await this.service.displayInvoice(orderId);
+  }
+
+  @Get('history/:userId')
+  async getOrderHistory(@Param('userId', ParseIntPipe) userId: number) {
+    return this.service.getOrdersByUserId(userId);
+  }
 
   // create a new order according to cartId; other fields will be filled later and no order_description related yet
   @Post('create')
@@ -77,48 +106,22 @@ export class OrderController {
     }
 
     return {
-      order,
       orderDescriptions,
+      order,
     };
   }
-
-
 
   @Post('remove/:order_id')
   async removeOrder(@Param('order_id') orderId: number) {
     return await this.service.removeOrder(orderId);
   }
 
-  @Get('check-product-availability/:order_id')
-  // check if product is available for given cartId
-  async checkProductAvailability(@Param('order_id') orderId: number) {
-    const order = await this.service.findOne({ where: { order_id: orderId } });
-    if (!order) {
-      throw new NotFoundException({
-        code: 'ORDER_NOT_FOUND',
-        message: `Order ${orderId} not found`,
-      });
-    }
-    return await this.service.checkProductAvailability(orderId);
-  }
-
-  @Get('history/:userId')
-  async getOrderHistory(@Param('userId', ParseIntPipe) userId: number) {
-    return this.service.getOrdersByUserId(userId);
-  }
-
-  // display invoice
-  @Get('invoice/:order_id')
-  async displayInvoice(@Param('order_id') orderId: number) {
-    return await this.service.displayInvoice(orderId);
-  }
-
-  @Patch('approve-reject/:order_id')
-  async approveOrRejectOrder(
-    @Param('order_id') orderId: number,
-    @Body() dto: ApproveOrderDto,
+  @Post(':order_id/cancel/:userId')
+  async cancelOrder(
+    @Param('order_id', ParseIntPipe) orderId: number,
+    @Param('userId', ParseIntPipe) userId: number,
   ) {
-    return this.service.approveOrRejectOrder(orderId, dto);
+    return this.service.cancelOrder(orderId, userId);
   }
 
   @Patch('update-status/:order_id')
@@ -129,16 +132,11 @@ export class OrderController {
     return this.service.updateOrderStatus(orderId, dto);
   }
 
-  @Get('pending-orders')
-  async getPendingOrders() {
-    return this.service.getPendingOrders();
-  }
-
-  @Post(':order_id/cancel/:userId')
-  async cancelOrder(
-    @Param('order_id', ParseIntPipe) orderId: number,
-    @Param('userId', ParseIntPipe) userId: number,
+  @Patch('approve-reject/:order_id')
+  async approveOrRejectOrder(
+    @Param('order_id') orderId: number,
+    @Body() dto: ApproveOrderDto,
   ) {
-    return this.service.cancelOrder(orderId, userId);
+    return this.service.approveOrRejectOrder(orderId, dto);
   }
 }

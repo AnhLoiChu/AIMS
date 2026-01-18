@@ -1,8 +1,8 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
+  Entity,
   ManyToOne,
+  PrimaryGeneratedColumn,
   JoinColumn,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
@@ -15,20 +15,20 @@ export class Product {
   @Column()
   title: string;
 
-  @Column('float')
-  value: number;
-
   @Column('int')
   quantity: number;
+
+  @Column('float')
+  value: number;
 
   @Column('float')
   current_price: number;
 
   @Column()
-  category: string;
+  manager_id: number;
 
   @Column()
-  manager_id: number;
+  category: string;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'manager_id', referencedColumnName: 'user_id' })
@@ -37,25 +37,23 @@ export class Product {
   @Column('timestamp')
   creation_date: Date;
 
-
+  @Column()
+  description: string;
 
   @Column()
   barcode: string;
 
   @Column()
-  description: string;
+  dimensions: string;
 
   @Column('float')
   weight: number;
 
-  @Column()
-  dimensions: string;
+  @Column('timestamp')
+  warehouse_entrydate: Date;
 
   @Column()
   type: 'book' | 'cd' | 'dvd' | 'news';
-
-  @Column('timestamp')
-  warehouse_entrydate: Date;
 
   @Column({ default: true })
   is_active: boolean;

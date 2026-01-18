@@ -1,33 +1,33 @@
 
-import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Trash2, Plus, Edit } from 'lucide-react';
 import { ProductForm } from './ProductForm';
-import { Plus, Edit, Trash2 } from 'lucide-react';
-import { formatVNDShort } from '@/utils/format';
 import { apiService } from '@/services/api';
+import { formatVNDShort } from '@/utils/format';
 
 interface Product {
-  id: string;
   title: string;
-  category: 'book' | 'cd' | 'news' | 'dvd';
+  id: string;
   value: number;
-  current_price: number;
+  category: 'book' | 'cd' | 'news' | 'dvd';
   quantity: number;
-  is_active: boolean;
+  current_price: number;
   creation_date: string;
+  is_active: boolean;
 }
 
 export const ProductManagement = () => {
-  const [products, setProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showForm, setShowForm] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -35,24 +35,50 @@ export const ProductManagement = () => {
 
   const fetchProducts = async () => {
     try {
-      setLoading(true);
       setError(null);
+      setLoading(true);
       const data = await apiService.getProducts({ limit: 100, includeInactive: true });
       setProducts(data.map((p: any) => ({
-        id: p.product_id.toString(),
         title: p.title,
-        category: p.category,
+        id: p.product_id.toString(),
         value: p.value,
-        current_price: p.current_price,
+        category: p.category,
         quantity: p.quantity,
+        current_price: p.current_price,
+        creation_date: new Date(p.creation_date).toISOString().split('T')[0],
         is_active: p.is_active,
-        creation_date: new Date(p.creation_date).toISOString().split('T')[0]
       })));
     } catch (err: any) {
-      setError('Failed to load products');
       console.error(err);
+      setError('Failed to load products');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEditProduct = async (productData: any) => {
+    if (!editingProduct) return;
+
+    try {
+      const payload = {
+        value: productData.value,
+        title: productData.title,
+        current_price: productData.current_price,
+        quantity: productData.quantity,
+        type: productData.category,
+        category: productData.category,
+        weight: productData.weight || 1.0,
+        description: productData.description || '',
+        dimensions: productData.dimensions || '10x10x10',
+        subtypeFields: buildSubtypeFields(productData)
+      };
+
+      await apiService.updateProduct(parseInt(editingProduct.id), payload);
+      await fetchProducts();
+      setShowForm(false);
+      setEditingProduct(null);
+    } catch (err: any) {
+      alert('Failed to update product: ' + (err.message || 'Unknown error'));
     }
   };
 
@@ -63,18 +89,18 @@ export const ProductManagement = () => {
       const managerId = user?.user_id || user?.id || 1;
 
       const payload = {
-        title: productData.title,
         value: productData.value,
-        quantity: productData.quantity,
+        title: productData.title,
         current_price: productData.current_price,
-        category: productData.category,
+        quantity: productData.quantity,
         type: productData.category,
-        barcode: `BAR${Date.now()}`,
+        category: productData.category,
         description: productData.description || '',
-        weight: productData.weight || 1.0,
+        barcode: `BAR${Date.now()}`,
         dimensions: productData.dimensions || '10x10x10',
-        warehouse_entrydate: new Date().toISOString(),
+        weight: productData.weight || 1.0,
         manager_id: managerId,
+        warehouse_entrydate: new Date().toISOString(),
         subtypeFields: buildSubtypeFields(productData)
       };
 
@@ -83,32 +109,6 @@ export const ProductManagement = () => {
       setShowForm(false);
     } catch (err: any) {
       alert('Failed to create product: ' + (err.message || 'Unknown error'));
-    }
-  };
-
-  const handleEditProduct = async (productData: any) => {
-    if (!editingProduct) return;
-
-    try {
-      const payload = {
-        title: productData.title,
-        value: productData.value,
-        quantity: productData.quantity,
-        current_price: productData.current_price,
-        category: productData.category,
-        type: productData.category,
-        description: productData.description || '',
-        weight: productData.weight || 1.0,
-        dimensions: productData.dimensions || '10x10x10',
-        subtypeFields: buildSubtypeFields(productData)
-      };
-
-      await apiService.updateProduct(parseInt(editingProduct.id), payload);
-      await fetchProducts();
-      setEditingProduct(null);
-      setShowForm(false);
-    } catch (err: any) {
-      alert('Failed to update product: ' + (err.message || 'Unknown error'));
     }
   };
 
@@ -130,54 +130,50 @@ export const ProductManagement = () => {
 
   const buildSubtypeFields = (data: any) => {
     switch (data.category) {
-      case 'book':
-        return {
-          author: data.author || '',
-          cover_type: data.cover_type || 'paperback',
-          publisher: data.publisher || '',
-          publication_date: data.publication_date || new Date().toISOString().split('T')[0],
-          number_of_pages: parseInt(data.number_of_pages) || 0,
-          language: data.language || 'English',
-          genre: data.genre || ''
-        };
       case 'cd':
         return {
-          artist: data.artist || '',
           record_label: data.record_label || '',
-          tracklist: data.tracklist || '',
+          artist: data.artist || '',
           release_date: data.release_date || new Date().toISOString().split('T')[0],
+          tracklist: data.tracklist || '',
           genre: data.genre || ''
         };
-      case 'dvd':
+      case 'book':
         return {
-          director: data.director || '',
-          runtime: data.runtime || '120',
-          studio: data.studio || '',
-          disc_type: data.disc_type || 'standard',
-          subtitles: data.subtitles || 'English',
+          cover_type: data.cover_type || 'paperback',
+          author: data.author || '',
+          publication_date: data.publication_date || new Date().toISOString().split('T')[0],
+          publisher: data.publisher || '',
           language: data.language || 'English',
-          release_date: data.release_date || new Date().toISOString().split('T')[0],
+          number_of_pages: parseInt(data.number_of_pages) || 0,
           genre: data.genre || ''
         };
       case 'news':
         return {
-          editor_in_chief: data.editor_in_chief || '',
           publisher: data.publisher || '',
-          publication_date: data.publication_date || new Date().toISOString().split('T')[0],
+          editor_in_chief: data.editor_in_chief || '',
           issue_number: data.issue_number || '1',
-          publication_frequency: data.publication_frequency || 'monthly',
+          publication_date: data.publication_date || new Date().toISOString().split('T')[0],
           issn: data.issn || '',
+          publication_frequency: data.publication_frequency || 'monthly',
+          sections: data.sections || '',
           language: data.language || 'English',
-          sections: data.sections || ''
+        };
+      case 'dvd':
+        return {
+          runtime: data.runtime || '120',
+          director: data.director || '',
+          disc_type: data.disc_type || 'standard',
+          studio: data.studio || '',
+          language: data.language || 'English',
+          subtitles: data.subtitles || 'English',
+          genre: data.genre || '',
+          release_date: data.release_date || new Date().toISOString().split('T')[0],
         };
       default:
         return {};
     }
   };
-
-  const filteredProducts = products.filter(product =>
-    product.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   const toggleProductSelection = (productId: string) => {
     setSelectedProducts(prev =>
@@ -186,6 +182,10 @@ export const ProductManagement = () => {
         : [...prev, productId]
     );
   };
+
+  const filteredProducts = products.filter(product =>
+    product.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   if (loading) {
     return <div className="flex justify-center items-center p-8">Loading products...</div>;
@@ -206,8 +206,8 @@ export const ProductManagement = () => {
         product={editingProduct}
         onSave={editingProduct ? handleEditProduct : handleAddProduct}
         onCancel={() => {
-          setShowForm(false);
           setEditingProduct(null);
+          setShowForm(false);
         }}
       />
     );
@@ -280,34 +280,34 @@ export const ProductManagement = () => {
                       const fullProduct = await apiService.getProductDetail(parseInt(product.id));
                       setEditingProduct({
                         id: product.id,
-                        title: fullProduct.title,
                         category: fullProduct.category as 'book' | 'cd' | 'news' | 'dvd',
-                        value: fullProduct.value,
+                        title: fullProduct.title,
                         current_price: fullProduct.current_price,
-                        quantity: fullProduct.quantity,
+                        value: fullProduct.value,
                         weight: fullProduct.weight,
+                        quantity: fullProduct.quantity,
                         dimensions: fullProduct.dimensions,
                         // Subtype fields
-                        author: fullProduct.author,
                         cover_type: fullProduct.cover_type,
-                        publisher: fullProduct.publisher,
+                        author: fullProduct.author,
                         publication_date: fullProduct.publication_date,
-                        number_of_pages: fullProduct.number_of_pages,
+                        publisher: fullProduct.publisher,
                         language: fullProduct.language,
+                        number_of_pages: fullProduct.number_of_pages,
                         genre: fullProduct.genre,
-                        artist: fullProduct.artist,
                         record_label: fullProduct.record_label,
-                        tracklist: fullProduct.tracklist,
+                        artist: fullProduct.artist,
                         release_date: fullProduct.release_date,
-                        director: fullProduct.director,
+                        tracklist: fullProduct.tracklist,
                         runtime: fullProduct.runtime,
-                        studio: fullProduct.studio,
+                        director: fullProduct.director,
                         disc_type: fullProduct.disc_type,
+                        studio: fullProduct.studio,
                         subtitles: fullProduct.subtitles,
-                        editor_in_chief: fullProduct.editor_in_chief,
                         issue_number: fullProduct.issue_number,
-                        publication_frequency: fullProduct.publication_frequency,
+                        editor_in_chief: fullProduct.editor_in_chief,
                         issn: fullProduct.issn,
+                        publication_frequency: fullProduct.publication_frequency,
                         sections: fullProduct.sections,
                       } as any);
                       setShowForm(true);
@@ -323,14 +323,14 @@ export const ProductManagement = () => {
             <CardContent>
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Value:</span>
-                  <span>{formatVNDShort(product.value)}</span>
-                </div>
-                <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Current Price:</span>
                   <span className="font-semibold text-green-600">
                     {formatVNDShort(product.current_price)}
                   </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Value:</span>
+                  <span>{formatVNDShort(product.value)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Stock:</span>

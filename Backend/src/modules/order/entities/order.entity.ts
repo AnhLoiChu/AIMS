@@ -1,22 +1,19 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
   ManyToOne,
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
   JoinColumn,
 } from 'typeorm';
-import { IsEnum, IsNumber, IsOptional, IsDate } from 'class-validator';
+import { IsNumber, IsEnum, IsDate, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
-import { Cart } from '../../cart/entities/cart.entity';
 import { OrderStatus } from '../dto/order-status.enum';
+import { Cart } from '../../cart/entities/cart.entity';
+
 @Entity()
 export class Order {
   @PrimaryGeneratedColumn('increment')
   order_id: number;
-
-  @Column('float')
-  @IsNumber()
-  subtotal: number;
 
   @Column({
     type: 'enum',
@@ -26,17 +23,22 @@ export class Order {
   @IsEnum(OrderStatus)
   status: OrderStatus;
 
-  @Column('timestamp', { nullable: true })
-  @IsOptional()
-  @IsDate()
-  @Type(() => Date)
-  accept_date: Date | null;
+  @Column('float')
+  @IsNumber()
+  subtotal: number;
 
   @Column()
   cart_id: number;
+
   @ManyToOne(() => Cart)
   @JoinColumn({ name: 'cart_id', referencedColumnName: 'cart_id' })
   cart: Cart;
+
+  @Column('timestamp', { nullable: true })
+  @IsDate()
+  @IsOptional()
+  @Type(() => Date)
+  accept_date: Date | null;
 
   @Column('float')
   @IsNumber()

@@ -1,26 +1,57 @@
 import {
-  Controller,
   Get,
-  Param,
+  Controller,
   Post,
-  Patch,
+  Param,
   Query,
+  Patch,
+  Delete,
   Body,
   NotFoundException,
-  Delete,
 } from '@nestjs/common';
-import { ProductService } from './product.service';
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateFullProductDto } from './dto/update-full-product.dto';
-import { DeleteProductsDto } from './dto/delete-products.dto';
 import { UseGuards } from '@nestjs/common';
-import { ManagerProductOwnershipGuard } from './guards/manager.guard';
+import { ProductService } from './product.service';
+import { UpdateFullProductDto } from './dto/update-full-product.dto';
+import { CreateProductDto } from './dto/create-product.dto';
+import { DeleteProductsDto } from './dto/delete-products.dto';
 import { RolesGuard } from './guards/role.guard';
+import { ManagerProductOwnershipGuard } from './guards/manager.guard';
 import { Roles } from './guards/role.guard';
 import { ApiBearerAuth } from '@nestjs/swagger';
+
 @Controller('products')
 export class ProductController {
   constructor(private readonly productService: ProductService) { }
+
+  @Get()
+  findAll(
+    @Query('category') category?: string,
+    @Query('search') search?: string,
+    @Query('maxPrice') maxPrice?: string,
+    @Query('minPrice') minPrice?: string,
+    @Query('limit') limit?: string,
+    @Query('sort') sort?: string,
+    @Query('includeInactive') includeInactive?: string,
+  ) {
+    const effectiveLimit = limit ? parseInt(limit, 10) : 20;
+    return this.productService.findAll({
+      category,
+      search,
+      maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
+      minPrice: minPrice ? parseFloat(minPrice) : undefined,
+      sort,
+      includeInactive: includeInactive === 'true',
+      limit: effectiveLimit,
+    });
+  }
+
+  @Get(':id')
+  async findOne(@Param('id') id: number) {
+    const product = await this.productService.findOne(id);
+    if (!product) throw new NotFoundException('Product not found');
+    return product;
+  }
+
   @ApiBearerAuth()
   @UseGuards(ManagerProductOwnershipGuard, RolesGuard)
   @Roles('manager', 'admin')
@@ -28,6 +59,7 @@ export class ProductController {
   create(@Body() createProductDto: CreateProductDto) {
     return this.productService.create(createProductDto);
   }
+
   @ApiBearerAuth()
   @UseGuards(ManagerProductOwnershipGuard, RolesGuard)
   @Roles('manager', 'admin')
@@ -51,34 +83,6 @@ export class ProductController {
     }
   }
 
-  @Get(':id')
-  async findOne(@Param('id') id: number) {
-    const product = await this.productService.findOne(id);
-    if (!product) throw new NotFoundException('Product not found');
-    return product;
-  }
-
-  @Get()
-  findAll(
-    @Query('search') search?: string,
-    @Query('category') category?: string,
-    @Query('minPrice') minPrice?: string,
-    @Query('maxPrice') maxPrice?: string,
-    @Query('sort') sort?: string,
-    @Query('limit') limit?: string,
-    @Query('includeInactive') includeInactive?: string,
-  ) {
-    const effectiveLimit = limit ? parseInt(limit, 10) : 20;
-    return this.productService.findAll({
-      search,
-      category,
-      minPrice: minPrice ? parseFloat(minPrice) : undefined,
-      maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
-      sort,
-      limit: effectiveLimit,
-      includeInactive: includeInactive === 'true',
-    });
-  }
   @ApiBearerAuth()
   @UseGuards(ManagerProductOwnershipGuard, RolesGuard)
   @Roles('manager', 'admin')

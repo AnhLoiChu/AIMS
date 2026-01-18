@@ -1,8 +1,8 @@
 export enum OrderStatus {
-  PLACING = 'Waiting for Payment',
   PENDING = 'Waiting for Approval',
-  ACCEPTED = 'Shipping',
+  PLACING = 'Waiting for Payment',
   REJECTED = 'Cancelled',
-  COMPLETED = 'Delivered',
+  ACCEPTED = 'Shipping',
   USER_CANCELLED = 'Cancelled by Customer',
+  COMPLETED = 'Delivered',
 }

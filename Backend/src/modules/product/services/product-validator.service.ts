@@ -1,10 +1,10 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { Repository } from 'typeorm';
-import { Product } from '../entities/product.entity';
+import { InjectRepository } from '@nestjs/typeorm';
 import { CreateProductDto } from '../dto/create-product.dto';
-import { UpdateFullProductDto } from '../dto/update-full-product.dto';
+import { Product } from '../entities/product.entity';
 import { IProductValidator } from '../interfaces/product-validator.interface';
+import { UpdateFullProductDto } from '../dto/update-full-product.dto';
 import { EDIT_LIMITS } from '../../../constants/edit-limits.constants';
 
 @Injectable()
@@ -13,15 +13,6 @@ export class ProductValidatorService implements IProductValidator {
     @InjectRepository(Product)
     private readonly productRepo: Repository<Product>,
   ) { }
-
-  async validateCreate(dto: CreateProductDto): Promise<void> {
-    await this.checkDuplicateProduct(dto.title, dto.barcode, dto.manager_id);
-
-    // Check quantity validation
-    if (dto.quantity < 0) {
-      throw new BadRequestException('Số lượng sản phẩm khi thêm mới không được âm');
-    }
-  }
 
   async validateUpdate(id: number, dto: UpdateFullProductDto): Promise<void> {
     const existingProduct = await this.productRepo.findOne({
@@ -34,8 +25,8 @@ export class ProductValidatorService implements IProductValidator {
 
     // Check duplicate excluding current product
     if (dto.title !== undefined || dto.barcode !== undefined) {
-      const titleToCheck = dto.title ?? existingProduct.title;
       const barcodeToCheck = dto.barcode ?? existingProduct.barcode;
+      const titleToCheck = dto.title ?? existingProduct.title;
 
       await this.checkDuplicateProduct(
         titleToCheck,
@@ -48,6 +39,15 @@ export class ProductValidatorService implements IProductValidator {
     // Check quantity validation
     if (dto.quantity !== undefined && dto.quantity < 0) {
       throw new BadRequestException('Số lượng sản phẩm cập nhật không được âm');
+    }
+  }
+
+  async validateCreate(dto: CreateProductDto): Promise<void> {
+    await this.checkDuplicateProduct(dto.title, dto.barcode, dto.manager_id);
+
+    // Check quantity validation
+    if (dto.quantity < 0) {
+      throw new BadRequestException('Số lượng sản phẩm khi thêm mới không được âm');
     }
   }
 
@@ -67,8 +67,8 @@ export class ProductValidatorService implements IProductValidator {
   ): Promise<void> {
     const queryBuilder = this.productRepo
       .createQueryBuilder('product')
-      .where('product.title = :title', { title })
-      .andWhere('product.barcode = :barcode', { barcode })
+      .where('product.barcode = :barcode', { barcode })
+      .andWhere('product.title = :title', { title })
       .andWhere('product.manager_id = :managerId', { managerId });
 
     if (excludeId) {

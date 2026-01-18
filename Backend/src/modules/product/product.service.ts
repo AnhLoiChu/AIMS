@@ -1,17 +1,17 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
-import { Product } from './entities/product.entity';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { Repository, In } from 'typeorm';
-import { ProductType } from './dto/base-product.dto';
+import { Product } from './entities/product.entity';
 import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateFullProductDto } from './dto/update-full-product.dto';
+import { ProductType } from './dto/base-product.dto';
 import { DeleteProductsDto } from './dto/delete-products.dto';
-import { EditHistoryService } from '../edit-history/edit-history.service';
+import { UpdateFullProductDto } from './dto/update-full-product.dto';
 import { EditAction } from '../edit-history/entities/edit-history.entity';
-import { UserService } from '../user/user.service';
+import { EditHistoryService } from '../edit-history/edit-history.service';
 import { ProductSubtypeFactory } from './factories/product-subtype.factory';
-import { ProductValidatorService } from './services/product-validator.service';
+import { UserService } from '../user/user.service';
 import { ProductBusinessRulesService } from './services/product-business-rules.service';
+import { ProductValidatorService } from './services/product-validator.service';
 import { CascadeDeletionService } from './services/cascade-deletion.service';
 
 @Injectable()
@@ -19,40 +19,18 @@ export class ProductService {
   constructor(
     @InjectRepository(Product)
     private readonly productRepo: Repository<Product>,
-    private readonly productSubtypeFactory: ProductSubtypeFactory,
-    private readonly productValidator: ProductValidatorService,
-    private readonly productBusinessRules: ProductBusinessRulesService,
-    private readonly cascadeDeletionService: CascadeDeletionService,
     private readonly editHistoryService: EditHistoryService,
+    private readonly productSubtypeFactory: ProductSubtypeFactory,
     private readonly userService: UserService,
+    private readonly productValidator: ProductValidatorService,
+    private readonly cascadeDeletionService: CascadeDeletionService,
+    private readonly productBusinessRules: ProductBusinessRulesService,
   ) { }
 
-  async create(createProductDto: CreateProductDto): Promise<Product> {
-    const { type, subtypeFields, ...baseFields } = createProductDto;
-
-    // Validation using dedicated validator
-    await this.productValidator.validateCreate(createProductDto);
-
-    // Create base product
-    const product = this.productRepo.create({
-      ...baseFields,
-      type,
-      creation_date: new Date(),
-      warehouse_entrydate: new Date(),
+  async findByIds(ids: number[]): Promise<Product[]> {
+    return await this.productRepo.find({
+      where: { product_id: In(ids) },
     });
-
-    const savedProduct = await this.productRepo.save(product);
-
-    // Create subtype using factory pattern
-    const subtypeService = this.productSubtypeFactory.getService(type);
-    const idField = this.productSubtypeFactory.getIdField(type);
-
-    await subtypeService.create({
-      ...subtypeFields,
-      [idField]: savedProduct.product_id,
-    });
-
-    return savedProduct;
   }
 
   async findOne(
@@ -84,22 +62,45 @@ export class ProductService {
 
     return { ...product, ...subtypeData };
   }
-  async findByIds(ids: number[]): Promise<Product[]> {
-    return await this.productRepo.find({
-      where: { product_id: In(ids) },
+
+  async create(createProductDto: CreateProductDto): Promise<Product> {
+    const { type, subtypeFields, ...baseFields } = createProductDto;
+
+    // Validation using dedicated validator
+    await this.productValidator.validateCreate(createProductDto);
+
+    // Create base product
+    const product = this.productRepo.create({
+      ...baseFields,
+      type,
+      warehouse_entrydate: new Date(),
+      creation_date: new Date(),
     });
+
+    const savedProduct = await this.productRepo.save(product);
+
+    // Create subtype using factory pattern
+    const subtypeService = this.productSubtypeFactory.getService(type);
+    const idField = this.productSubtypeFactory.getIdField(type);
+
+    await subtypeService.create({
+      ...subtypeFields,
+      [idField]: savedProduct.product_id,
+    });
+
+    return savedProduct;
   }
 
   async findAll(params: {
-    search?: string;
     category?: string;
-    minPrice?: number;
+    search?: string;
     maxPrice?: number;
+    minPrice?: number;
     sort?: string;
-    limit: number;
     includeInactive?: boolean;
+    limit: number;
   }): Promise<Product[]> {
-    const { search, category, minPrice, maxPrice, sort, limit, includeInactive } = params;
+    const { category, search, maxPrice, minPrice, sort, includeInactive, limit } = params;
     const qb = this.productRepo.createQueryBuilder('product');
 
     if (!includeInactive) {
@@ -129,14 +130,14 @@ export class ProductService {
       qb.andWhere('product.current_price <= :maxPrice', { maxPrice });
     }
 
-    if (sort === 'random') {
-      qb.orderBy('RANDOM()');
-    } else if (sort === 'price_asc') {
+    if (sort === 'price_asc') {
       qb.orderBy('product.current_price', 'ASC');
-    } else if (sort === 'price_desc') {
-      qb.orderBy('product.current_price', 'DESC');
+    } else if (sort === 'random') {
+      qb.orderBy('RANDOM()');
     } else if (sort === 'newest') {
       qb.orderBy('product.creation_date', 'DESC');
+    } else if (sort === 'price_desc') {
+      qb.orderBy('product.current_price', 'DESC');
     } else {
       // Default sort
       qb.orderBy('product.title', 'ASC');
@@ -145,6 +146,61 @@ export class ProductService {
     qb.take(limit);
 
     return await qb.getMany();
+  }
+
+  private generateChangeDescription(
+    oldData: any,
+    updateDto: UpdateFullProductDto,
+  ): string {
+    const changes: string[] = [];
+    const { subtypeFields, ...baseFields } = updateDto;
+
+    // Check changes in base fields
+    Object.keys(baseFields).forEach((key) => {
+      if (
+        key !== 'type' &&
+        oldData[key] !== undefined &&
+        baseFields[key] !== undefined &&
+        oldData[key] !== baseFields[key]
+      ) {
+        changes.push(`${key}: ${oldData[key]} ---> ${baseFields[key]}`);
+      }
+    });
+
+    // Check changes in subtype fields
+    if (subtypeFields) {
+      Object.keys(subtypeFields).forEach((key) => {
+        if (
+          oldData[key] !== undefined &&
+          subtypeFields[key] !== undefined &&
+          oldData[key] !== subtypeFields[key]
+        ) {
+          changes.push(`${key}: ${oldData[key]} ---> ${subtypeFields[key]}`);
+        }
+      });
+    }
+
+    return changes.join(', ');
+  }
+
+  private async recordEditHistory(
+    productId: number,
+    oldCompleteData: Product & Record<string, unknown>,
+    updateDto: UpdateFullProductDto,
+  ): Promise<void> {
+    const changeDescription = this.generateChangeDescription(
+      oldCompleteData,
+      updateDto,
+    );
+
+    // Only create edit history if there are actual changes
+    if (changeDescription) {
+      await this.editHistoryService.create({
+        product_id: productId,
+        action: EditAction.EDIT,
+        change_description: changeDescription,
+      });
+    }
   }
 
   async update(
@@ -211,61 +267,6 @@ export class ProductService {
       );
     }
     return result;
-  }
-
-  private async recordEditHistory(
-    productId: number,
-    oldCompleteData: Product & Record<string, unknown>,
-    updateDto: UpdateFullProductDto,
-  ): Promise<void> {
-    const changeDescription = this.generateChangeDescription(
-      oldCompleteData,
-      updateDto,
-    );
-
-    // Only create edit history if there are actual changes
-    if (changeDescription) {
-      await this.editHistoryService.create({
-        product_id: productId,
-        action: EditAction.EDIT,
-        change_description: changeDescription,
-      });
-    }
-  }
-
-  private generateChangeDescription(
-    oldData: any,
-    updateDto: UpdateFullProductDto,
-  ): string {
-    const changes: string[] = [];
-    const { subtypeFields, ...baseFields } = updateDto;
-
-    // Check changes in base fields
-    Object.keys(baseFields).forEach((key) => {
-      if (
-        key !== 'type' &&
-        oldData[key] !== undefined &&
-        baseFields[key] !== undefined &&
-        oldData[key] !== baseFields[key]
-      ) {
-        changes.push(`${key}: ${oldData[key]} ---> ${baseFields[key]}`);
-      }
-    });
-
-    // Check changes in subtype fields
-    if (subtypeFields) {
-      Object.keys(subtypeFields).forEach((key) => {
-        if (
-          oldData[key] !== undefined &&
-          subtypeFields[key] !== undefined &&
-          oldData[key] !== subtypeFields[key]
-        ) {
-          changes.push(`${key}: ${oldData[key]} ---> ${subtypeFields[key]}`);
-        }
-      });
-    }
-
-    return changes.join(', ');
   }
 
   async deleteMultiple(deleteProductsDto: DeleteProductsDto) {

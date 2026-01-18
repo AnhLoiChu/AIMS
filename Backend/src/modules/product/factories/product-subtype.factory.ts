@@ -1,14 +1,14 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
-import { BookService } from '../../book/book.service';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { CdService } from '../../cd/cd.service';
-import { DvdService } from '../../dvd/dvd.service';
+import { BookService } from '../../book/book.service';
 import { NewsService } from '../../news/news.service';
-import { ProductType } from '../dto/base-product.dto';
+import { DvdService } from '../../dvd/dvd.service';
 import { IProductSubtypeService } from '../interfaces/product-subtype.interface';
+import { ProductType } from '../dto/base-product.dto';
 
 export interface IProductSubtypeFactory {
-  getService(type: ProductType): IProductSubtypeService<any, any, any>;
   getIdField(type: ProductType): string;
+  getService(type: ProductType): IProductSubtypeService<any, any, any>;
 }
 
 @Injectable()
@@ -16,19 +16,22 @@ export class ProductSubtypeFactory implements IProductSubtypeFactory {
   private readonly serviceMap = new Map<ProductType, IProductSubtypeService<any, any, any>>();
 
   constructor(
-    private readonly bookService: BookService,
     private readonly cdService: CdService,
-    private readonly dvdService: DvdService,
+    private readonly bookService: BookService,
     private readonly newsService: NewsService,
+    private readonly dvdService: DvdService,
   ) {
     this.initializeServices();
   }
 
-  private initializeServices(): void {
-    this.serviceMap.set(ProductType.BOOK, this.bookService);
-    this.serviceMap.set(ProductType.CD, this.cdService);
-    this.serviceMap.set(ProductType.DVD, this.dvdService);
-    this.serviceMap.set(ProductType.NEWS, this.newsService);
+  getIdField(type: ProductType): string {
+    const fieldMap = {
+      [ProductType.CD]: 'cd_id',
+      [ProductType.BOOK]: 'book_id',
+      [ProductType.NEWS]: 'news_id',
+      [ProductType.DVD]: 'dvd_id',
+    };
+    return fieldMap[type];
   }
 
   getService(type: ProductType): IProductSubtypeService<any, any, any> {
@@ -39,13 +42,10 @@ export class ProductSubtypeFactory implements IProductSubtypeFactory {
     return service;
   }
 
-  getIdField(type: ProductType): string {
-    const fieldMap = {
-      [ProductType.BOOK]: 'book_id',
-      [ProductType.CD]: 'cd_id',
-      [ProductType.DVD]: 'dvd_id',
-      [ProductType.NEWS]: 'news_id',
-    };
-    return fieldMap[type];
+  private initializeServices(): void {
+    this.serviceMap.set(ProductType.CD, this.cdService);
+    this.serviceMap.set(ProductType.BOOK, this.bookService);
+    this.serviceMap.set(ProductType.NEWS, this.newsService);
+    this.serviceMap.set(ProductType.DVD, this.dvdService);
   }
 } 
