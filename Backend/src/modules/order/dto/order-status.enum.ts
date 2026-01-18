@@ -4,4 +4,5 @@ export enum OrderStatus {
   ACCEPTED = 'Shipping',
   REJECTED = 'Cancelled',
   COMPLETED = 'Delivered',
+  USER_CANCELLED = 'Cancelled by Customer',
 }

@@ -81,7 +81,7 @@ const getProvinceName = (codename: string): string => {
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  constructor(private readonly mailerService: MailerService) {}
+  constructor(private readonly mailerService: MailerService) { }
 
   async sendOrderConfirmation(
     order: Order,
@@ -120,6 +120,39 @@ export class MailService {
     } catch (error) {
       this.logger.error(
         `Failed to send order confirmation email to ${deliveryInfo.email}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  async sendOrderCancellation(
+    order: Order,
+    deliveryInfo: DeliveryInfo,
+  ) {
+    const subject = `Order Cancellation Confirmation - #${order.order_id}`;
+    const totalAmount = (order.subtotal + order.delivery_fee).toFixed(2);
+
+    try {
+      await this.mailerService.sendMail({
+        to: deliveryInfo.email,
+        subject,
+        html: `
+          <h1>Order Cancellation Confirmation</h1>
+          <p>Dear ${deliveryInfo.recipient_name},</p>
+          <p>We are writing to confirm that your order <strong>#${order.order_id}</strong> has been successfully cancelled as per your request.</p>
+          <h2>Order Details:</h2>
+          <ul>
+            <li><strong>Order ID:</strong> #${order.order_id}</li>
+            <li><strong>Total Amount:</strong> ${Number(totalAmount).toLocaleString('vi-VN')} VND</li>
+          </ul>
+          <p>If you have already made a payment, our support team will contact you regarding the refund process soon.</p>
+        `,
+      });
+      this.logger.log(`Order cancellation email sent to ${deliveryInfo.email}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to send order cancellation email to ${deliveryInfo.email}`,
         error.stack,
       );
       throw error;

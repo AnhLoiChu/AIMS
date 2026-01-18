@@ -259,6 +259,12 @@ class ApiService {
     return this.request(`/order/history/${userId}`);
   }
 
+  async cancelOrder(orderId: number | string, userId: number | string): Promise<any> {
+    return this.request(`/order/${orderId}/cancel/${userId}`, {
+      method: "POST",
+    });
+  }
+
   async getPendingOrders(): Promise<any> {
     return this.request("/order/pending-orders");
   }

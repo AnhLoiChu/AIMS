@@ -21,6 +21,7 @@ import { OrderDescriptionService } from '../order-description/order-description.
 import { DeliveryInfoService } from '../delivery-info/delivery-info.service';
 import { CreateDeliveryInfoDto } from '../delivery-info/dto/create-delivery-info.dto';
 import { FeeCalculationService } from '../fee-calculation/fee-calculation.service';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class OrderService extends TypeOrmCrudService<Order> {
@@ -43,6 +44,7 @@ export class OrderService extends TypeOrmCrudService<Order> {
     private readonly orderDescriptionService: OrderDescriptionService,
     private readonly deliveryInfoService: DeliveryInfoService,
     private readonly feeCalculationService: FeeCalculationService,
+    private readonly mailService: MailService,
   ) {
     super(orderRepository);
   }
@@ -239,7 +241,6 @@ export class OrderService extends TypeOrmCrudService<Order> {
 
 
 
-  // calculate delivery fee for rush items
 
 
   // display invoice
@@ -605,5 +606,69 @@ export class OrderService extends TypeOrmCrudService<Order> {
     );
 
     return ordersWithDetails;
+  }
+
+  async cancelOrder(orderId: number, userId: number) {
+    const order = await this.orderRepository.findOne({
+      where: { order_id: orderId },
+      relations: ['cart'],
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order #${orderId} not found`);
+    }
+
+    // Security check: Verify order belongs to the user
+    console.log(`[OrderService] Attempting to cancel order ${orderId} for userId ${userId}. Order owner: ${order.cart.customer_id}, cart_id: ${order.cart_id}, status: ${order.status}`);
+
+    const isOfficialOwner = Number(order.cart.customer_id) === Number(userId);
+    const isCompatibilityOwner = Number(order.cart_id) === Number(userId);
+
+    if (!isOfficialOwner && !isCompatibilityOwner) {
+      console.error(`[OrderService] Unauthorized cancel attempt: User ${userId} is neither official owner (${order.cart.customer_id}) nor compatibility owner (${order.cart_id})`);
+      throw new BadRequestException('You are not authorized to cancel this order');
+    }
+
+    // Rule: Can only cancel if status is "Waiting for Approval" or "Waiting for Payment"
+    if (order.status !== OrderStatus.PENDING && order.status !== OrderStatus.PLACING) {
+      console.error(`[OrderService] Invalid status for cancel: ${order.status}`);
+      throw new BadRequestException(
+        `Order cannot be cancelled because its current status is "${order.status}"`,
+      );
+    }
+
+    const queryRunner = this.orderRepository.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const originalStatus = order.status;
+      order.status = OrderStatus.USER_CANCELLED;
+      await queryRunner.manager.save(Order, order);
+
+      // Get delivery info for email
+      const deliveryInfo = await this.deliveryInfoRepository.findOne({
+        where: { order_id: orderId },
+      });
+
+      await queryRunner.commitTransaction();
+
+      // Trigger email notification asynchronously ONLY if it was already paid (PENDING)
+      if (deliveryInfo && originalStatus === OrderStatus.PENDING) {
+        this.mailService.sendOrderCancellation(order, deliveryInfo).catch((err) => {
+          console.error(`[OrderService] Failed to send cancellation email for order ${orderId}:`, err);
+        });
+      }
+
+      return {
+        message: `Đã hủy đơn hàng #${orderId} thành công.`,
+        status: order.status
+      };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
 }

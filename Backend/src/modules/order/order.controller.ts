@@ -102,38 +102,6 @@ export class OrderController {
     return await this.service.checkProductAvailability(orderId);
   }
 
-  // @Post('calculate-delivery-fee/:order_id')
-  // async calculateDeliveryFee(@Param('order_id') orderId: number) {
-  //   const { normalSubtotal, normalDeliveryFee } =
-  //     await this.service.calculateNormalDeliveryFee(orderId);
-  //   const { rushSubtotal, rushDeliveryFee } =
-  //     await this.service.calculateRushDeliveryFee(orderId);
-
-  //   const subtotal = normalSubtotal + rushSubtotal;
-  //   const deliveryFee = normalDeliveryFee + rushDeliveryFee;
-
-  //   const order = await this.service.findOne({
-  //     where: { order_id: orderId },
-  //   });
-
-  //   if (!order) {
-  //     throw new NotFoundException({
-  //       code: 'ORDER_NOT_FOUND',
-  //       message: `Order ID ${orderId} not found`,
-  //     });
-  //   }
-
-  //   order.subtotal = subtotal;
-  //   order.delivery_fee = deliveryFee;
-
-  //   await this.orderRepository.save(order);
-  //   return {
-  //     message: `Order ${orderId}: delivery fee and subtotal updated successfully`,
-  //     subtotal,
-  //     deliveryFee,
-  //   };
-  // }
-
   @Get('history/:userId')
   async getOrderHistory(@Param('userId', ParseIntPipe) userId: number) {
     return this.service.getOrdersByUserId(userId);
@@ -164,5 +132,13 @@ export class OrderController {
   @Get('pending-orders')
   async getPendingOrders() {
     return this.service.getPendingOrders();
+  }
+
+  @Post(':order_id/cancel/:userId')
+  async cancelOrder(
+    @Param('order_id', ParseIntPipe) orderId: number,
+    @Param('userId', ParseIntPipe) userId: number,
+  ) {
+    return this.service.cancelOrder(orderId, userId);
   }
 }

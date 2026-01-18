@@ -35,11 +35,7 @@ Total Tests: 20 tests
   Expected: Returns created product with DVD details
   Validates: DVD-specific subtype fields handling
 
-✓ Test: should create an LP product successfully
-  Description: Verifies successful creation of an LP product
-  Input: CreateProductDto with LP-specific fields (artist, record_label, genre, tracklist)
-  Expected: Returns created product with LP details
-  Validates: LP-specific subtype fields handling
+
 
 ✓ Test: should handle service errors during creation
   Description: Verifies proper error handling when service layer fails
@@ -178,14 +174,7 @@ Total Tests: 15 tests
     - DVD-specific field mapping (runtime, director, studio, etc.)
     - Complex subtype handling
 
-✓ Test: should create an LP product successfully
-  Description: Verifies business logic for LP product creation
-  Input: CreateProductDto with LP fields
-  Expected: Product repository called, LP service called, returns saved product
-  Validates:
-    - LP service integration with correct lp_id
-    - LP-specific field mapping
-    - Vinyl product type handling
+
 
 -------------------------------------------
 2.2 UPDATE PRODUCT SERVICE TESTS (7 tests)
@@ -302,7 +291,7 @@ Total Tests: 15 tests
 ===========================================================================
 
 3.1 PRODUCT CREATION RULES
-- Multi-type product support (Book, CD, DVD, LP)
+- Multi-type product support (Book, CD, DVD, News)
 - Automatic date field generation (creation_date, warehouse_entrydate)
 - Proper subtype field mapping and validation
 - Repository transaction handling
@@ -359,12 +348,12 @@ Total Test Coverage:
 - Book: author, publisher, cover_type, pages, language, genre
 - CD: artist, record_label, genre, tracklist, release_date
 - DVD: director, runtime, studio, language, subtitles, disc_type
-- LP: artist, record_label, genre, tracklist, release_date
+
 
 5.2 Business Constraints Tested:
 - Edit Limits: 5 per product/day, 5 per manager/day
 - Price Limits: 30%-150% of product value
-- Product Types: book, cd, dvd, lp
+- Product Types: book, cd, dvd, news
 - Manager Permissions: edit tracking and limits
 
 5.3 Error Scenarios Tested:

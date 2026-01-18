@@ -32,7 +32,6 @@ describe('ProductController', () => {
     category: 'Literature',
     manager_id: 1,
     creation_date: new Date(),
-    rush_order_eligibility: true,
     barcode: '1234567890123',
     description: 'A classic novel',
     weight: 0.5,
@@ -60,7 +59,6 @@ describe('ProductController', () => {
     category: 'Literature',
     manager_id: 1,
     creation_date: new Date(),
-    rush_order_eligibility: true,
     barcode: '1234567890123',
     description: 'A classic novel',
     weight: 0.5,
@@ -117,80 +115,58 @@ describe('ProductController', () => {
       expect(result).toEqual(expectedResult);
     });
 
-         it('should create a CD product successfully', async () => {
-       // Arrange
-       const cdCreateDto: CreateProductDto = {
-         ...mockCreateProductDto,
-         type: ProductType.CD,
-         subtypeFields: {
-           artist: 'The Beatles',
-           record_label: 'Apple Records',
-           genre: 'Rock',
-           tracklist: 'Come Together, Something',
-           release_date: new Date('1969-09-26'),
-         },
-       };
-       const expectedResult = { ...mockProduct, type: 'cd' as const };
-       jest.spyOn(service, 'create').mockResolvedValue(expectedResult);
+    it('should create a CD product successfully', async () => {
+      // Arrange
+      const cdCreateDto: CreateProductDto = {
+        ...mockCreateProductDto,
+        type: ProductType.CD,
+        subtypeFields: {
+          artist: 'The Beatles',
+          record_label: 'Apple Records',
+          genre: 'Rock',
+          tracklist: 'Come Together, Something',
+          release_date: new Date('1969-09-26'),
+        },
+      };
+      const expectedResult = { ...mockProduct, type: 'cd' as const };
+      jest.spyOn(service, 'create').mockResolvedValue(expectedResult);
 
-       // Act
-       const result = await controller.create(cdCreateDto);
+      // Act
+      const result = await controller.create(cdCreateDto);
 
-       // Assert
-       expect(service.create).toHaveBeenCalledWith(cdCreateDto);
-       expect(result).toEqual(expectedResult);
-     });
+      // Assert
+      expect(service.create).toHaveBeenCalledWith(cdCreateDto);
+      expect(result).toEqual(expectedResult);
+    });
 
-         it('should create a DVD product successfully', async () => {
-       // Arrange
-       const dvdCreateDto: CreateProductDto = {
-         ...mockCreateProductDto,
-         type: ProductType.DVD,
-         subtypeFields: {
-           director: 'Christopher Nolan',
-           runtime: '148 minutes',
-           studio: 'Warner Bros',
-           language: 'English',
-           subtitles: 'English, Spanish',
-           disc_type: 'DVD',
-           genre: 'Action',
-           release_date: new Date('2010-07-16'),
-         },
-       };
-       const expectedResult = { ...mockProduct, type: 'dvd' as const };
-       jest.spyOn(service, 'create').mockResolvedValue(expectedResult);
+    it('should create a DVD product successfully', async () => {
+      // Arrange
+      const dvdCreateDto: CreateProductDto = {
+        ...mockCreateProductDto,
+        type: ProductType.DVD,
+        subtypeFields: {
+          director: 'Christopher Nolan',
+          runtime: '148 minutes',
+          studio: 'Warner Bros',
+          language: 'English',
+          subtitles: 'English, Spanish',
+          disc_type: 'DVD',
+          genre: 'Action',
+          release_date: new Date('2010-07-16'),
+        },
+      };
+      const expectedResult = { ...mockProduct, type: 'dvd' as const };
+      jest.spyOn(service, 'create').mockResolvedValue(expectedResult);
 
-       // Act
-       const result = await controller.create(dvdCreateDto);
+      // Act
+      const result = await controller.create(dvdCreateDto);
 
-       // Assert
-       expect(service.create).toHaveBeenCalledWith(dvdCreateDto);
-       expect(result).toEqual(expectedResult);
-     });
+      // Assert
+      expect(service.create).toHaveBeenCalledWith(dvdCreateDto);
+      expect(result).toEqual(expectedResult);
+    });
 
-         it('should create an LP product successfully', async () => {
-       // Arrange
-       const lpCreateDto: CreateProductDto = {
-         ...mockCreateProductDto,
-         type: ProductType.LP,
-         subtypeFields: {
-           artist: 'Pink Floyd',
-           record_label: 'Harvest Records',
-           genre: 'Progressive Rock',
-           tracklist: 'Speak to Me, Breathe, On the Run',
-           release_date: new Date('1973-03-01'),
-         },
-       };
-       const expectedResult = { ...mockProduct, type: 'lp' as const };
-       jest.spyOn(service, 'create').mockResolvedValue(expectedResult);
 
-       // Act
-       const result = await controller.create(lpCreateDto);
-
-       // Assert
-       expect(service.create).toHaveBeenCalledWith(lpCreateDto);
-       expect(result).toEqual(expectedResult);
-     });
 
     it('should handle service errors during creation', async () => {
       // Arrange
@@ -205,36 +181,35 @@ describe('ProductController', () => {
   });
 
   describe('update', () => {
-         it('should update a product successfully', async () => {
-       // Arrange
-       const productId = 1;
-       const expectedResult = {
-         product_id: 1,
-         title: 'The Great Gatsby - Updated',
-         value: 100,
-         quantity: 15,
-         current_price: 90,
-         category: 'Literature',
-         manager_id: 1,
-         creation_date: new Date(),
-         rush_order_eligibility: true,
-         barcode: '1234567890123',
-         description: 'A classic novel',
-         weight: 0.5,
-         dimensions: '20x15x3 cm',
-         type: 'book' as const,
-         warehouse_entrydate: new Date(),
-         manager: mockUser,
-       };
-       jest.spyOn(service, 'update').mockResolvedValue(expectedResult);
+    it('should update a product successfully', async () => {
+      // Arrange
+      const productId = 1;
+      const expectedResult = {
+        product_id: 1,
+        title: 'The Great Gatsby - Updated',
+        value: 100,
+        quantity: 15,
+        current_price: 90,
+        category: 'Literature',
+        manager_id: 1,
+        creation_date: new Date(),
+        barcode: '1234567890123',
+        description: 'A classic novel',
+        weight: 0.5,
+        dimensions: '20x15x3 cm',
+        type: 'book' as const,
+        warehouse_entrydate: new Date(),
+        manager: mockUser,
+      };
+      jest.spyOn(service, 'update').mockResolvedValue(expectedResult);
 
-       // Act
-       const result = await controller.update(productId, mockUpdateProductDto);
+      // Act
+      const result = await controller.update(productId, mockUpdateProductDto);
 
-       // Assert
-       expect(service.update).toHaveBeenCalledWith(productId, mockUpdateProductDto);
-       expect(result).toEqual(expectedResult);
-     });
+      // Assert
+      expect(service.update).toHaveBeenCalledWith(productId, mockUpdateProductDto);
+      expect(result).toEqual(expectedResult);
+    });
 
     it('should update only base product fields', async () => {
       // Arrange
@@ -407,32 +382,32 @@ describe('ProductController', () => {
     });
   });
 
-     describe('deleteMultiple', () => {
-     it('should delete multiple products successfully', async () => {
-       // Arrange
-       const deleteDto = { productIds: [1, 2, 3] };
-       const expectedResult = {
-         success: true,
-         deletedCount: 3,
-         errorCount: 0,
-         deletedProducts: [
-           { id: 1, title: 'Product 1', type: 'book' },
-           { id: 2, title: 'Product 2', type: 'cd' },
-           { id: 3, title: 'Product 3', type: 'dvd' },
-         ],
-         errors: [],
-         message: 'Successfully deleted 3 products',
-       };
-       jest.spyOn(service, 'deleteMultiple').mockResolvedValue(expectedResult);
+  describe('deleteMultiple', () => {
+    it('should delete multiple products successfully', async () => {
+      // Arrange
+      const deleteDto = { productIds: [1, 2, 3] };
+      const expectedResult = {
+        success: true,
+        deletedCount: 3,
+        errorCount: 0,
+        deletedProducts: [
+          { id: 1, title: 'Product 1', type: 'book' },
+          { id: 2, title: 'Product 2', type: 'cd' },
+          { id: 3, title: 'Product 3', type: 'dvd' },
+        ],
+        errors: [],
+        message: 'Successfully deleted 3 products',
+      };
+      jest.spyOn(service, 'deleteMultiple').mockResolvedValue(expectedResult);
 
-       // Act
-       const result = await controller.deleteMultiple(deleteDto);
+      // Act
+      const result = await controller.deleteMultiple(deleteDto);
 
-       // Assert
-       expect(service.deleteMultiple).toHaveBeenCalledWith(deleteDto);
-       expect(result).toEqual(expectedResult);
-     });
-   });
+      // Assert
+      expect(service.deleteMultiple).toHaveBeenCalledWith(deleteDto);
+      expect(result).toEqual(expectedResult);
+    });
+  });
 
   it('should be defined', () => {
     expect(controller).toBeDefined();

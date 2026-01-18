@@ -41,6 +41,21 @@ export const OrderHistory = ({ userId }: OrderHistoryProps) => {
     fetchOrders();
   }, [userId]);
 
+  const handleCancelOrder = async (orderId: string) => {
+    if (!window.confirm('Bạn có chắc chắn muốn hủy đơn hàng này không?')) return;
+
+    try {
+      await apiService.cancelOrder(orderId, userId);
+      // Refresh orders
+      const data = await apiService.getOrderHistory(userId);
+      setOrders(data);
+      alert('Đơn hàng đã được hủy thành công.');
+    } catch (error: any) {
+      console.error("OrderHistory: Failed to cancel order:", error);
+      alert('Hủy đơn hàng thất bại: ' + (error.message || 'Lỗi không xác định'));
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Waiting for Payment': return 'bg-orange-100 text-orange-800';
@@ -48,6 +63,7 @@ export const OrderHistory = ({ userId }: OrderHistoryProps) => {
       case 'Shipping': return 'bg-blue-100 text-blue-800';
       case 'Delivered': return 'bg-green-100 text-green-800';
       case 'Cancelled': return 'bg-red-100 text-red-800';
+      case 'Cancelled by Customer': return 'bg-red-50 text-red-600 border border-red-200';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -120,6 +136,16 @@ export const OrderHistory = ({ userId }: OrderHistoryProps) => {
                     <span>{(order.subtotal + order.delivery_fee).toLocaleString()} VND</span>
                   </div>
                 </div>
+                {(order.status === 'Waiting for Approval' || order.status === 'Waiting for Payment') && (
+                  <div className="pt-2 border-t">
+                    <button
+                      onClick={() => handleCancelOrder(order.order_id)}
+                      className="w-full py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                    >
+                      Hủy đơn hàng
+                    </button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

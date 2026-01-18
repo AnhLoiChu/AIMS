@@ -16,6 +16,8 @@ import { Role, RoleName } from '../role/entities/role.entity';
 import { OrderStatus } from './dto/order-status.enum';
 import { OrderDescriptionService } from '../order-description/order-description.service';
 import { DeliveryInfoService } from '../delivery-info/delivery-info.service';
+import { FeeCalculationService } from '../fee-calculation/fee-calculation.service';
+import { MailService } from '../mail/mail.service';
 
 // Mock TypeOrmCrudService to avoid real constructor logic
 jest.mock('@dataui/crud-typeorm', () => ({
@@ -33,6 +35,8 @@ describe('OrderService', () => {
   let schedulerRegistry: SchedulerRegistry;
   let orderDescriptionService: any;
   let deliveryInfoService: any;
+  let feeCalculationService: any;
+  let mailService: any;
 
   beforeEach(async () => {
     orderRepository = {
@@ -67,14 +71,20 @@ describe('OrderService', () => {
     };
 
     orderDescriptionService = {
-      extendRushOrderDescription: jest.fn().mockResolvedValue({
-        success: true,
-        message: 'Updated 2 product(s) for rush delivery in order 1',
-      }),
+      createOrderDescription: jest.fn().mockResolvedValue([]),
+      deleteProductInOrder: jest.fn().mockResolvedValue({}),
     };
 
     deliveryInfoService = {
-      createRushOrderDeliveryInfo: jest.fn().mockResolvedValue({}),
+      create: jest.fn().mockResolvedValue({}),
+    };
+
+    feeCalculationService = {
+      calculateDeliveryFee: jest.fn().mockResolvedValue(10),
+    };
+
+    mailService = {
+      sendOrderConfirmation: jest.fn().mockResolvedValue({}),
     };
 
     const mockSchedulerRegistry = {
@@ -120,6 +130,14 @@ describe('OrderService', () => {
           provide: DeliveryInfoService,
           useValue: deliveryInfoService,
         },
+        {
+          provide: FeeCalculationService,
+          useValue: feeCalculationService,
+        },
+        {
+          provide: MailService,
+          useValue: mailService,
+        },
       ],
     }).compile();
 
@@ -139,8 +157,4 @@ describe('OrderService', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
-
-
-
-
 });

@@ -13,6 +13,7 @@ import { DeliveryInfo } from '../delivery-info/entities/delivery-info.entity';
 import { DeliveryInfoModule } from '../delivery-info/delivery-info.module';
 import { FeeCalculationModule } from '../fee-calculation/fee-calculation.module';
 import { Product } from '../product/entities/product.entity';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { Product } from '../product/entities/product.entity';
     OrderDescriptionModule,
     DeliveryInfoModule,
     FeeCalculationModule,
+    MailModule,
   ],
   controllers: [OrderController],
   providers: [OrderService],

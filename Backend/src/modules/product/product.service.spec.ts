@@ -9,7 +9,6 @@ import { EditHistory } from '../edit-history/entities/edit-history.entity';
 import { BookService } from '../book/book.service';
 import { DvdService } from '../dvd/dvd.service';
 import { CdService } from '../cd/cd.service';
-import { LpService } from '../lp/lp.service';
 import { EditHistoryService } from '../edit-history/edit-history.service';
 import { UserService } from '../user/user.service';
 import { BadRequestException } from '@nestjs/common';
