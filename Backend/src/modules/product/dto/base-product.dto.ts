@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { IsNumber, Min } from 'class-validator';
 
 export enum ProductType {
   BOOK = 'book',
@@ -18,6 +19,8 @@ export class BaseProductDto {
   value: number;
 
   @ApiProperty({ example: 10, description: 'Quantity in stock' })
+  @IsNumber()
+  @Min(1, { message: 'Số lượng sản phẩm khi thêm mới phải lớn hơn 0' })
   quantity: number;
 
   @ApiProperty({ example: 95, description: 'Current price of the product' })

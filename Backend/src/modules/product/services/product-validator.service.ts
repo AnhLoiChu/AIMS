@@ -12,10 +12,15 @@ export class ProductValidatorService implements IProductValidator {
   constructor(
     @InjectRepository(Product)
     private readonly productRepo: Repository<Product>,
-  ) {}
+  ) { }
 
   async validateCreate(dto: CreateProductDto): Promise<void> {
     await this.checkDuplicateProduct(dto.title, dto.barcode, dto.manager_id);
+
+    // Check quantity validation
+    if (dto.quantity <= 0) {
+      throw new BadRequestException('Số lượng sản phẩm khi thêm mới phải lớn hơn 0');
+    }
   }
 
   async validateUpdate(id: number, dto: UpdateFullProductDto): Promise<void> {
@@ -31,13 +36,18 @@ export class ProductValidatorService implements IProductValidator {
     if (dto.title !== undefined || dto.barcode !== undefined) {
       const titleToCheck = dto.title ?? existingProduct.title;
       const barcodeToCheck = dto.barcode ?? existingProduct.barcode;
-      
+
       await this.checkDuplicateProduct(
         titleToCheck,
         barcodeToCheck,
         existingProduct.manager_id,
         id
       );
+    }
+
+    // Check quantity validation
+    if (dto.quantity !== undefined && dto.quantity <= 0) {
+      throw new BadRequestException('Số lượng sản phẩm cập nhật phải lớn hơn 0');
     }
   }
 
