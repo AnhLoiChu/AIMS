@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { CheckCircle, Receipt, User, MapPin, Phone, Calendar } from 'lucide-react';
+import { getProvinceName } from '@/utils/provinces';
 
 interface OrderSuccessProps {
   orderData: {
@@ -75,7 +76,7 @@ export const OrderSuccess = ({ orderData, transactionData, onBackToShopping }: O
                 <div>
                   <p className="text-sm text-gray-500">Shipping Address</p>
                   <p className="font-medium">{orderData.deliveryInfo.address}</p>
-                  <p className="text-sm text-gray-600">{orderData.deliveryInfo.province}</p>
+                  <p className="text-sm text-gray-600">{getProvinceName(orderData.deliveryInfo.province)}</p>
                 </div>
               </div>
 
@@ -83,7 +84,7 @@ export const OrderSuccess = ({ orderData, transactionData, onBackToShopping }: O
 
               <div>
                 <p className="text-sm text-gray-500">Total Amount</p>
-                <p className="text-2xl font-bold text-green-600">${orderData.pricing.total.toFixed(2)}</p>
+                <p className="text-2xl font-bold text-green-600">{orderData.pricing.total.toLocaleString('vi-VN')} VND</p>
               </div>
 
 
@@ -141,7 +142,7 @@ export const OrderSuccess = ({ orderData, transactionData, onBackToShopping }: O
                     <span className="font-medium">{item.title}</span>
                     <span className="text-gray-500 ml-2">(x{item.quantity})</span>
                   </div>
-                  <span className="font-medium">${(item.current_price * item.quantity).toFixed(2)}</span>
+                  <span className="font-medium">{(item.current_price * item.quantity).toLocaleString('vi-VN')} VND</span>
                 </div>
               ))}
             </div>
@@ -151,11 +152,11 @@ export const OrderSuccess = ({ orderData, transactionData, onBackToShopping }: O
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span>Subtotal (excl. VAT):</span>
-                <span>${orderData.pricing.subtotal.toFixed(2)}</span>
+                <span>{orderData.pricing.subtotal.toLocaleString('vi-VN')} VND</span>
               </div>
               <div className="flex justify-between">
                 <span>VAT (10%):</span>
-                <span>${orderData.pricing.vat.toFixed(2)}</span>
+                <span>{orderData.pricing.vat.toLocaleString('vi-VN')} VND</span>
               </div>
               {orderData.pricing.deliveryFees.regular > 0 && (
                 <div className="flex justify-between">
@@ -167,7 +168,7 @@ export const OrderSuccess = ({ orderData, transactionData, onBackToShopping }: O
               <Separator />
               <div className="flex justify-between font-bold text-lg">
                 <span>Total:</span>
-                <span>${orderData.pricing.total.toFixed(2)}</span>
+                <span>{orderData.pricing.total.toLocaleString('vi-VN')} VND</span>
               </div>
             </div>
           </CardContent>
