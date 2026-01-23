@@ -67,7 +67,7 @@ export const CustomerDashboard = ({ user, onLogout, onRoleSwitch, availableRoles
           id: item.product_id?.toString() || item.product?.product_id?.toString(),
           title: item.product?.title || 'Loading...',
           category: item.product?.category || 'General',
-          current_price: item.product?.value || 0, // Note: Backend uses 'value'
+          current_price: item.product?.current_price || 0, // Use selling price, not original value
           quantity: item.quantity,
           maxQuantity: item.product?.quantity || 100,
           weight: item.product?.weight || 0

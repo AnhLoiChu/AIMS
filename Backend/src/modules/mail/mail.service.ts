@@ -89,7 +89,7 @@ export class MailService {
     deliveryInfo: DeliveryInfo,
   ) {
     const subject = `Order Confirmation - #${order.order_id}`;
-    const totalAmount = (order.subtotal * 1.1 + order.delivery_fee).toFixed(2);
+    const totalAmount = (order.subtotal + order.delivery_fee).toFixed(2);
 
     try {
       await this.mailerService.sendMail({
